@@ -1,0 +1,11 @@
+name: 'supertabledemo'
+version: 0.0.1
+description: >
+  A scrillable table.
+#author: John Yendt <normcf@gmail.com>
+#homepage: http://www.normcf.com
+environment:
+  sdk: '>=1.0.0 <2.0.0'
+dependencies:
+  browser: any
+  intl: any

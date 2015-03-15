@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<!--
+  Copyright (c) 2015, <your name>. All rights reserved. Use of this source code
+  is governed by a BSD-style license that can be found in the LICENSE file.
+-->
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="scaffolded-by" content="https://github.com/google/stagehand">
+    <title>testwebubersimple</title>
+
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/supertable.css">
+    <link rel="stylesheet" href="styles/supertabview.css">
+</head>
+
+<body>
+
+<div style='height:1px;width:1px;float:left'></div>
+<div id=test1 style='height:1px;width:1px;'></div>
+
+  <div id="output" style="clear:both;">Put some text here</div>
+ <p>
+  
+  <div id="output2">
+  This is what you can do:
+  <ul>
+  <li>scroll vertically and horizontally with the body, header and footer staying together</li>
+  <li>grab the right edge of any header andresize the column without affecting other column widths</li>
+  <li>reorder columns by grabbing and dragging a header</li>
+  <li>sort columns by double clicking on the header</li>
+  <li>split the table into two views by grabbing the left edge of the table and dragging right</li>
+  <li>select rows by clicking, shift clicking, or control clicking</li>
+  <li>Create computed values of selected rows which change as rows are un/selected</li>
+  <li>Resizing the wrapper will recalculate the need for scroll bars.  Each press = 1 px.  Hold Shift key for 10px.</li>
+  <li>press the saveAs to create a CSV file and download to local</li>
+  <li>click a cell twice to open editing, if editable, and full text selection.  Changed values are validated according to their data type.  (Zuck's phone and Schmidt's age are editable for your enjoyment)</li>
+  </ul>
+ Pros:
+ <ol>
+ <li>You can subclass the row selection class and have your own handler of clicks</li>
+ <li>Set up your own data types for setting a sort order</li>
+ <li>Add computed fields and subclass to generate as you need</li>
+ <li>All classes and attibute names have defaults but can be changed if you have name collisions</li>
+ <li>You can subclass the saveAs function if you want to save in a different format</li>
+ <li>The sort function can be called with multiple rows in ascending, or decending order</li>
+ </ol>
+ Cons:
+ <ol>
+ <li>You can put ids on elements in the table, but the dart clone function copies the id too, so you may not be able to find the element in the document by id alone.
+ It might be better, if you need to identify elements, to use an attribute of your own.</li>
+ <li>Currently there is nothing built to allow the user to select which format to saveAs nor whether they want to save just the selected rows or all the rows, but the programmer can 
+ subclass the saveAs class and create their own format.  This still doesn't pop up a list of valid formats.  That should be done outside the table.  Maybe later this will be internalized.</li>
+ <li>Row and Column span cannot be used at all.</li>
+ <li>Only a single hheader line can be used</li>
+ <li>Cell contents must, for now, be only plain text, not links.  I will be adding more brains as I go along.</li>
+ </ol>
+ Design decision:
+ <ul>
+ <li>All of the "must have" styles are added by SuperTable so that the CSS cannot be accidentally messed up.</li>
+ <li>Class and attribute names are the same as provided in the sample CSS file, but they can be overridden if you're using those somwhere else in you application.
+ After you instantiate the SuperTable object, but before you call init, change any names you want.</li>
+ 
+  </ul>
+ 
+<button id='hplus'>h+</button><button id='hminus'>h-</button><button id='vplus'>v+</button><button id='vminus'>v-</button>
+<button id='split'>split</button>
+<button id='saveAs'>saveAsCSV</button>
+<button id='saveAsFods'>saveAsFODS</button>
+<p> 
+  </div>
+  <div id="test2" class='tablescroll_wrapper' style='position:relative;top:0px;left:200px;height:150px;width:1000px;border-style: inset; border-width:5px; border-color: gray;'>
+  
+  <table id='testtable1'>
+  <colgroup>
+  <col initwidth='80'  datatype='text' />
+  <col initwidth='200'  datatype='text' />
+  <col initwidth='150'  datatype='date' />
+  <col initwidth='200'  datatype='integer' />
+  <col initwidth='800'  datatype='text' />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Name</th> 
+      <th>Telephone</th>
+      <th>Graduation</th>
+      <th>Age</th>
+      <th>long</th>
+     </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <td>gates, Bill</td>
+    <td>555 77 854</td>
+    <td>1983-05-30</td>
+    <td>62</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Steve Jobs</td>
+    <td>555 88 854</td>
+    <td>1981-06-01</td>
+    <td>6</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td id='serg'>Sergey Brin</td>
+    <td>555 99 854</td>
+    <td>1998-06-03</td>
+    <td>44</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Mark Zuckerburg 2px</td>
+    <td class="Editable" cellEditHandler="Log">555 91 854 phone phone phone phone</td>
+    <td>1999-05-25</td>
+    <td>30</td>
+    <td>space space space space space space space space space space space space space space space space space space space space space space space</td>
+  </tr>
+  <tr>
+    <td>Larry Page</td>
+    <td>555 92 854</td>
+    <td>1975-04-22</td>
+    <td>44</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Eric Schmidt</td>
+    <td>555 93 854</td>
+    <td>1975-04-30</td>
+    <td class="Editable">68</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Marissa Mayer</td>
+    <td>555 94 854</td>
+    <td>2001-12-22</td>
+    <td>29</td>
+    <td>space</td>
+  </tr>
+  </tbody>
+  </table>
+</div>
+<p>
+<p>
+<div style='clear:both;'>Test table with footer</div>
+<div class='tablescroll_wrapper' style='position:relative;top:13px;height:180px;width:1100px;border-style: inset; border-width:5px; border-color: gray;'>
+  <table id='testtable2'>
+  <colgroup>
+  <col initwidth='50'  datatype='text' />
+  <col initwidth='50'  datatype='integer' />
+  <col initwidth='100'  datatype='text' />
+  <col initwidth='160'  datatype='text' />
+  <col initwidth='700'  datatype='text' />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Name</th> 
+      <th>Years In Office</th>
+      <th>Telephone</th>
+      <th>Mobile</th>
+      <th>long</th>
+     </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <td>Jimmy Carter</td>
+    <td>4</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Ronald Raegan</td>
+    <td>8</td>
+    <td>555 88 854</td>
+    <td>555 88 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>George H. W. Bush</td>
+    <td>4</td>
+    <td>555 99 854</td>
+    <td>555 99 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Bill Clinton</td>
+    <td>8</td>
+    <td>555 91 854 phone phone phone phone</td>
+    <td>555 91 855 more more more more more</td>
+    <td>space space space space space space space space space space space space space space space space space space space space space space space</td>
+  </tr>
+  <tr>
+    <td>George W. Bush</td>
+    <td>8</td>
+    <td>555 92 854</td>
+    <td>555 92 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Barrak Obama</td>
+    <td>7</td>
+    <td>555 93 854</td>
+    <td>555 93 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Richard Nixon</td>
+    <td>5</td>
+    <td>555 94 854</td>
+    <td>555 94 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Gerald Ford</td>
+    <td>3</td>
+    <td>555 94 854</td>
+    <td>555 94 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>LBJ</td>
+    <td>6</td>
+    <td>555 94 854</td>
+    <td>555 94 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>JFK</td>
+    <td>2</td>
+    <td>555 94 854</td>
+    <td>555 94 855</td>
+    <td>space</td>
+  </tr>
+  </tbody>
+  <tfoot>
+  <td class='number'></td>
+  <td class='number'></td>
+  <td>fnum</td>
+  <td>ffax</td>
+  <td>fspace</td>
+  </tfoot>
+  </table>
+  </div>
+<script type="application/dart" src="main.dart"></script>
+<script data-pub-inline src="packages/browser/dart.js"></script>
+<p>Let's put some text below.  Need a P tag to get below the table.  This is because of the relative top on the div.  
+
+<p>
+The following is a layout test for when you want to control a lot of fields.  I call it ChunkFitLayout.  
+Basically, you put elements into groups with a leader that can be acted on in certain ways.  
+For instance, if you want a group of elements to all have the same width, then choose a leader element and add all the other elements you want the same width.
+The layouter will do it.
+If 6 months from now you need them all to be a little wider, just widen the leader and you're done.
+Currently ChunkFitLayout can Size, Align, Space, and Stretch.
+Lots of things aligned on their left, right or top edges.
+Lots were spaced vertically and horizontally.
+3 fields on the right were sized equally.
+Stretch wasn't used here, but it can stretch a wide element to line up with something else.
+<p>
+Not the Chunk piece.
+You can then form a number of elements into a Chunk and then fit the whole chunks together in the minimum space without overlap.
+In the example, one chunk is labe1, value1, label2, value2, label3 and value3.
+The rest of the elements are in chunk2.
+The two Chunks were horizontally slid together.
+
+<div id="chunkFitTest" style='position:relative;top:0px;height:180px;width:1100px;border-style: inset; border-width:5px; border-color: gray; overflow: auto;'>
+<div id='label1'>Label1:</div><textarea id='text1' rows="1" cols="10">value1</textarea>
+<label id='label2'>Longer Label2:</label><textarea id='text2' rows="1" cols="20">value2</textarea>
+<div id='label3' style='text-align:right;'>short Label3</div><textarea id='text3' rows="1" cols="6">value3</textarea>
+<div id='labela1'>Labela1:</div><textarea id='texta1' rows="1" cols="10">valuea1</textarea>
+<div id='labela2'>la2:</div><textarea id='texta2' rows="1" cols="20">valuea2</textarea>
+<div id='labela3'>short Labela3:</div><textarea id='texta3' rows="1" cols="6">valuea3</textarea>
+<div id='labela4'>short Labela4:</div><textarea id='texta4' rows="1" cols="12">valuea4</textarea>
+</div>
+<textarea id='labelx' rows="1" cols="10" style='white-space:nowrap; border:0;overflow:hidden;'>short Label3:</textarea>
+
+<p>
+Lots of Tab demos out there, so this is nothing spectacular.
+Try resizing to se the scroll bar go away when it gets wide enough.
+If a Supertable was inside, resizing would resize it to fit the content area.
+I'll add a demo of this later.
+Cannot reorder the tabs yet.
+<button id='thplus'>h+</button><button id='thminus'>h-</button><button id='tvplus'>v+</button><button id='tvminus'>v-</button>
+
+<div id='testtabview1' class='tabview_wrapper' style='position:relative;height:180px;width:350px;border-style: inset; border-width:2px; border-color: gray;'>
+<ul id="tabs1">
+<li id='tab1' tabtext='DTL'><div style="overflow:auto;">Initial content cannot be pure text.  Need an element to grab.</div></li>
+<li id='tab2' tabtext='FIN'><div style="overflow:auto;">Initial financial content.  Let's add an incomplete "safe harbor" statement here and see if the area will generate scroll bars automatically.
+The Author is not responsible for any outcome of using this code.
+Use at your own risk.
+Forward looking statements are always subject to risk on unknows including, but not limited to, floods, hurricanes, fx changes, earthquakes, wars in the middle east, wars in the balkans, oil embargos,
+bee colony collapse disorder, elections, etc.</div></li>
+<li id='tab3' tabtext='ALT'><div>Initial alternate content</div></li>
+<li id='tab4' tabtext='MORE'><div>Initial more content</div></li>
+<li id='tab5' tabtext='WAY WIDE MORE'><div>Initial more content</div></li>
+<li id='tab6' tabtext='INV'><div class='tablescroll_wrapper' style='position:absolute;'>
+<table id='tabbedtable'>
+  <colgroup>
+  <col initwidth='50'  datatype='text' />
+  <col initwidth='40'  datatype='integer' />
+  <col initwidth='100'  datatype='text' />
+  <col initwidth='160'  datatype='text' />
+  <col initwidth='700'  datatype='text' />
+  </colgroup>
+  <thead>
+    <tr>
+      <th>Name</th> 
+      <th>Years In Office</th>
+      <th>Telephone</th>
+      <th>Mobile</th>
+      <th>long</th>
+     </tr>
+  </thead>
+  <tbody>
+  <tr>
+    <td>Joe Biden</td>
+    <td>6</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Dick Cheney</td>
+    <td>8</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Al Gore</td>
+    <td>8</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Dan Quayle</td>
+    <td>4</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>George H. W. Bush</td>
+    <td>4</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Walter Mondale</td>
+    <td>4</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+  <tr>
+    <td>Nelson Rockefeller</td>
+    <td>4</td>
+    <td>444 77 854</td>
+    <td>444 77 855</td>
+    <td>space</td>
+  </tr>
+</tbody>
+</table>
+</div>
+</li>
+<li id='tab7' tabtext='CAB'><div>Initial more content</div></li>
+<li id='tab8' tabtext='JUNK'><div>Initial junk content</div></li>
+</ul>
+</div>
+
+That's all for now.
+Might do a split screen later.
+</body>
+</html>

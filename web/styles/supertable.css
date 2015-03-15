@@ -1,0 +1,158 @@
+table.superTableBody { 
+  white-space:nowrap;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/*
+  table-layout:fixed;
+  text-overflow:ellipsis;
+*/
+
+table.superTableHeader { 
+  white-space:nowrap;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+table.superTableFooter { 
+  white-space:nowrap;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black
+}
+
+.mainHolder {
+}
+
+.splitHolder {
+}
+
+.cellEdited {
+  color: red;
+}
+
+.Editing {
+  white-space:nowrap;
+  text-overflow: hidden;
+  overflow-x: hidden;
+}
+
+table.superTableHeader th, table.superTableHeader td {
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 2px;
+}
+
+table.superTableBody th, table.superTableBody td {
+  white-space:nowrap;
+  overflow:hidden;
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 2px;  
+}
+
+table.superTableFooter th, table.superTableFooter td {
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 2px;
+}
+
+table.superTableBody tr.selected {
+  background-color: #3399FF;
+}
+
+table.superTableHeader .columnMoverHolder {
+}
+
+table.superTableHeader .columnResizeGrabber {
+  width:5px;
+  margin-right:-5px;
+  left:100%;
+  cursor:w-resize;
+}
+
+.SplitTableGrabber {
+  cursor:w-resize;
+}
+
+.movingColumnTable tr, .movingColumnTable td {
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  border: 1px solid black;
+  border-collapse: collapse;
+  padding: 2px;
+}
+
+.ShowStuff {
+  background-color: WHITE;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+  vertical-align: middle;
+}
+
+/*
+-moz-user-select: none; -webkit-user-select: none; -ms-user-select:none; user-select:none;-o-user-select:none;' 
+
+eventually sticky will work 
+table.superTable thead {
+  top: 0;
+  position: -webkit-sticky; 
+  position: -moz-sticky; 
+  position: -ms-sticky; 
+  position: -o-sticky; 
+  position: sticky; 
+}
+*/
+
+table.superTableBody td.text {
+  text-align:left
+}
+table.superTableBody td.integer {
+  text-align:right
+}
+table.superTableBody td.datetime {
+  text-align:left
+}
+table.superTableBody td.money {
+  text-align:right
+}
+
+table.superTableHeader th.text {
+  text-align:left
+}
+table.superTableHeader th.number {
+  text-align:right
+}
+table.superTableHeader th.datetime {
+  text-align:left
+}
+table.superTableHeader th.money {
+  text-align:right
+}
+
+table.superTableFooter td.text {
+  text-align:left
+}
+table.superTableFooter td.number {
+  text-align:right
+}
+table.superTableFooter td.datetime {
+  text-align:left
+}
+table.superTableFooter td.money {
+  text-align:right
+}
+
+
+
