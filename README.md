@@ -24,7 +24,7 @@ Developer features:
  6.  Can subclass the cell datatypes to create your own datatypes, which are used by SaveAs. 
 
 
-The example.html and example.dart file demos these functions.  Most of the time the demo is avaulable at http://normcf.com/supertabledemo/examples/example.html
+The example.html and example.dart files demo these functions.  Most of the time the demo is available at http://normcf.com/supertabledemo/examples/example.html
 
 Some other dart functions are supplied.
  1. a tabview.  Lot's of these out there, but this one can scroll through tabs if there are more than the space allows.  It is also resizable.
