@@ -3,10 +3,10 @@
 
 import 'dart:html';
 
-import 'supertable.dart';
-import 'chunkfitlayout.dart';
-import 'supertabview.dart';
-import 'supertablesaveasfods.dart';
+import '../supertable.dart';
+import '../chunkfitlayout.dart';
+import '../supertabview.dart';
+import '../supertablesaveasfods.dart';
 
 void main() {
   //t1 = new SuperTable.presizedContainer('testtable1');
