@@ -1,6 +1,8 @@
 # dart
 Some dart functions for the browser to make HTML tables much more "toollike"
 
+If you want to see the current state, go to http://normcf.com/supertabledemo/examples/example.html
+
 The functions made so far:
  1. scroll vertically and horizontally with the body, header and footer staying together
  2. grab the right edge of any header and resize the column without affecting other column widths
@@ -22,9 +24,6 @@ Developer features:
  4.  All classes and attibute names have defaults but can be changed if you have name collisions
  5.  The sort function can be called with multiple rows in ascending, or decending order if simple single clicks are not sufficient.
  6.  Can subclass the cell datatypes to create your own datatypes, which are used by SaveAs. 
-
-
-The index.html file demos these functions.
 
 Some other dart functions are supplied.
  1. a tabview.  Lot's of these out there, but this one can scroll through tabs if there are more than the space allows.  It is also resizable.

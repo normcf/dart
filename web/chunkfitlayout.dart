@@ -26,7 +26,7 @@ abstract class ChunkFitChange {
   ChunkFitChange addId(String id) { return addE(document.querySelector('#' + id)); }
   
   void alter();
-  
+    
   void Debug(String s) {
     if (debug) window.console.debug('ChunkFitChange ' + s);
   }
@@ -82,13 +82,13 @@ class ChunkFitSpace extends ChunkFitChange {
           break;
         case RIGHT:
           component.style.left = (p0 + d0 + gap).toString() + 'px';
-          d0 = component.offsetHeight;
-          p0 = component.offsetTop;
+          d0 = component.offsetWidth;
+          p0 = component.offsetLeft;
           break;
         case LEFT:
           component.style.left = (p0 - (component.offsetWidth + gap)).toString() + 'px';
           //d0 = component.offsetHeight; // not used
-          p0 = component.offsetTop;
+          p0 = component.offsetLeft;
           break;
         case NONE:
           /* Do nothing */
@@ -188,8 +188,8 @@ class ChunkFitStretch extends ChunkFitChange {
   static const int NONE = 0, RIGHT = 1, LEFT = 2, TOP = 3, BOTTOM = 4;
   int edge;
   
-  ChunkFitStretch.element(Element start, int this.edge) : super.element(start,ChunkFitChange.ALIGN) {}
-  ChunkFitStretch.id     (String  start, int this.edge) : super.id     (start,ChunkFitChange.ALIGN) {}
+  ChunkFitStretch.element(Element start, int this.edge) : super.element(start,ChunkFitChange.STRETCH) {}
+  ChunkFitStretch.id     (String  start, int this.edge) : super.id     (start,ChunkFitChange.STRETCH) {}
   
   void alter() {
     Element component; 
@@ -200,17 +200,25 @@ class ChunkFitStretch extends ChunkFitChange {
       {
         case LEFT:  
           component.style.width = (component.offsetWidth + (component.offsetLeft - start.offsetLeft)).toString() + 'px';
+          component.style.minWidth = component.style.width;
+          component.style.maxWidth = component.style.width;
           component.style.left = start.style.left;
           break;
         case RIGHT: 
-          component.style.width = (start.offsetLeft + start.offsetWidth - (component.offsetLeft + component.offsetWidth)).toString() + 'px';
+          component.style.width = (start.offsetLeft + start.offsetWidth - (component.offsetLeft)).toString() + 'px';
+          component.style.minWidth = component.style.width;
+          component.style.maxWidth = component.style.width;
           break;
         case TOP:   
           component.style.height = (component.offsetHeight + (component.offsetTop - start.offsetTop)).toString() + 'px';
+          component.style.minHeight = component.style.height;
+          component.style.maxHeight = component.style.height;
           component.style.top = start.style.top;
           break;
         case BOTTOM:
-          component.style.height = (start.offsetTop + start.offsetHeight - (component.offsetTop + component.offsetHeight)).toString() + 'px';
+          component.style.height = (start.offsetTop + start.offsetHeight - (component.offsetTop)).toString() + 'px';
+          component.style.minHeight = component.style.height;
+          component.style.maxHeight = component.style.height;
           break;
         case NONE: break;
       }
@@ -369,6 +377,7 @@ class ChunkFitLayout {
   int interChunkSpace = INTERCHUNKSPACE;
   int leftInset = LEFTINSET;
   int topInset = TOPINSET;
+  int h = 0, w = 0;
   double hmult = 1.0, vmult = 1.0;
   List<ChunkFitChange> changes; //private int changeCount = 0;
   bool firstTime = true;
@@ -476,5 +485,27 @@ class ChunkFitLayout {
       component.style.top  = (component.offsetTop  + offsety).toString() + 'px';
     }
   }
+  
+  // Call these afterwards if you want to size your contailer to fit
+  int getWidth() {
+    int w = 0, right;
+    Element component;
+    for (component in components) {
+      right = component.offsetLeft + component.offsetWidth;
+      if (right > w) w = right;
+    }
+    
+    return w + leftInset; /* add right inset to get whole picture */
+  }
 
+  int getHeight() {
+    int h = 0, bot;
+    Element component;
+    for (component in components) {
+      bot = component.offsetTop + component.offsetHeight;
+      if (bot > h) h = bot;
+    }
+    
+    return h + topInset; /* add bottom inset to get whole picture */
+  }
 }
