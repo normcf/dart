@@ -101,41 +101,41 @@ void main() {
      .addId('label2').addId('text2')
      .addId('label3').addId('text3');
   
-  Size size0 = new Size.id("label1",Size.VERTICAL);
+  ChunkFitSize size0 = new ChunkFitSize.id("label1",ChunkFitSize.VERTICAL);
   size0.addId('label1').addId('text1')
     .addId('label2').addId('text2')
     .addId('label3').addId('text3'); 
   cfl.changes.add(size0);
   
-  Align alignh1 = new Align.element(cflHolder.querySelector('#label1'),Align.TOP);
+  ChunkFitAlign alignh1 = new ChunkFitAlign.element(cflHolder.querySelector('#label1'),ChunkFitAlign.TOP);
   alignh1.addId('text1');
   cfl.changes.add(alignh1);
 
-  Space space1 = new Space.id('label1',Space.RIGHT);
+  ChunkFitSpace space1 = new ChunkFitSpace.id('label1',ChunkFitSpace.RIGHT);
   space1.addId('text1');
   cfl.changes.add(space1);
 
-  Space space2 = new Space.id('text1',Space.DOWN);
+  ChunkFitSpace space2 = new ChunkFitSpace.id('text1',ChunkFitSpace.DOWN);
   space2.addId('text2').addId('text3');
   cfl.changes.add(space2);
 
-  Align align1 = new Align.id('label1',Align.RIGHT);
+  ChunkFitAlign align1 = new ChunkFitAlign.id('label1',ChunkFitAlign.RIGHT);
   align1.addId('label2').addId('label3');
   cfl.changes.add(align1);
   
-  Align align2 = new Align.id('text1',Align.LEFT);
+  ChunkFitAlign align2 = new ChunkFitAlign.id('text1',ChunkFitAlign.LEFT);
   align2.addId('text2').addId('text3');
   cfl.changes.add(align2);
   
-  Align alignh2 = new Align.id('text2',Align.TOP);
+  ChunkFitAlign alignh2 = new ChunkFitAlign.id('text2',ChunkFitAlign.TOP);
   alignh2.addId('label2');
   cfl.changes.add(alignh2);
   
-  Align alignh3 = new Align.id('text3',Align.TOP);
+  ChunkFitAlign alignh3 = new ChunkFitAlign.id('text3',ChunkFitAlign.TOP);
   alignh3.addId('label3');
   cfl.changes.add(alignh3);
   
-  Chunk chunk1 = new Chunk(Chunk.NONE);
+  ChunkFitChunk chunk1 = new ChunkFitChunk(ChunkFitChunk.NONE);
   chunk1.name = "chunk1";
   chunk1.addId('label1').addId('text1')
   .addId('label2').addId('text2')
@@ -153,15 +153,15 @@ void main() {
     .addId('labela3').addId('texta3')
     .addId('labela4').addId('texta4'); 
   
-  Space spacea1 = new Space.id('labela1',Space.RIGHT); 
+  ChunkFitSpace spacea1 = new ChunkFitSpace.id('labela1',ChunkFitSpace.RIGHT); 
   spacea1.addId('texta1'); // Now texta1 comes immediately right of labela1 
   cfl.changes.add(spacea1);
   
-  Align aligna1 = new Align.element(cflHolder.querySelector('#labela1'),Align.RIGHT);
+  ChunkFitAlign aligna1 = new ChunkFitAlign.element(cflHolder.querySelector('#labela1'),ChunkFitAlign.RIGHT);
   aligna1.addId('labela2').addId('labela3').addId('labela4');
   cfl.changes.add(aligna1);
   
-  Align aligna2 = new Align.id('texta1',Align.LEFT);
+  ChunkFitAlign aligna2 = new ChunkFitAlign.id('texta1',ChunkFitAlign.LEFT);
   aligna2.addId('texta2').addId('texta3').addId('texta4');
   cfl.changes.add(aligna2);
  
@@ -172,21 +172,21 @@ void main() {
   alignh3.addId('labela3').addId('texta3'); // chunk spacing.
 
   // Because there is nothing in the first chunk to align labela4 and texta4 to, we will need to space them down
-  Space spacea2 = new Space.id('texta3',Space.DOWN); 
+  ChunkFitSpace spacea2 = new ChunkFitSpace.id('texta3',ChunkFitSpace.DOWN); 
   spacea2.addId('texta4');
   cfl.changes.add(spacea2);
   
   // Now vertically align texta4 to labela4
-  Align alignh4 = new Align.id('texta4',Align.TOP);
+  ChunkFitAlign alignh4 = new ChunkFitAlign.id('texta4',ChunkFitAlign.TOP);
   alignh4.addId('labela4');
   cfl.changes.add(alignh4);
   
-  Size size1 = new Size.id('texta2', Size.HORIZONTAL);
+  ChunkFitSize size1 = new ChunkFitSize.id('texta2', ChunkFitSize.HORIZONTAL);
   size1.addId('texta3').addId('texta4');
   cfl.changes.add(size1);
   
   // No fit the chunks together
-  Chunk chunk2 = new Chunk(Chunk.RIGHT);
+  ChunkFitChunk chunk2 = new ChunkFitChunk(ChunkFitChunk.RIGHT);
   chunk2.name = "chunk2";
   chunk2.addId('labela1').addId('texta1') // Don't forget to add them to the layout.
   .addId('labela2').addId('texta2')

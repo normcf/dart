@@ -6,7 +6,7 @@ library ChunkFitLayout;
 import 'dart:html';
 import 'dart:math';
 
-abstract class Change {
+abstract class ChunkFitChange {
   static const int NONE = 0, SPACE = 1, SIZE = 2, ALIGN = 3, STRETCH = 4, CHUNK = 5;
   static const int CHANGEGROW = 10;
   List<Element> components;
@@ -14,16 +14,16 @@ abstract class Change {
   bool debug = true;
   int changeType = NONE;
   
-  Change.element(Element this.start, int this.changeType) {
+  ChunkFitChange.element(Element this.start, int this.changeType) {
     this.components = new List<Element>();
   }
-  Change.id(String id, int this.changeType) {
+  ChunkFitChange.id(String id, int this.changeType) {
     this.components = new List<Element>();
     start = document.querySelector('#' + id);
   }
  
-  Change addE(Element element) {components.add(element); return this; }
-  Change addId(String id) { return addE(document.querySelector('#' + id)); }
+  ChunkFitChange addE(Element element) {components.add(element); return this; }
+  ChunkFitChange addId(String id) { return addE(document.querySelector('#' + id)); }
   
   void alter();
   
@@ -32,14 +32,14 @@ abstract class Change {
   }
 }
 
-class Space extends Change {
+class ChunkFitSpace extends ChunkFitChange {
   static const int NONE = 0, DOWN = 1, UP = 2, LEFT = 3, RIGHT = 4;
   static const GAP = 5;
   int gap = GAP;
   int spaceDirection = DOWN;
   
-  Space.element(Element start, this.spaceDirection, [int this.gap = GAP]) : super.element(start,Change.SPACE) {}
-  Space.id     (String  start, this.spaceDirection, [int this.gap = GAP]) : super.id     (start,Change.SPACE) {}
+  ChunkFitSpace.element(Element start, this.spaceDirection, [int this.gap = GAP]) : super.element(start,ChunkFitChange.SPACE) {}
+  ChunkFitSpace.id     (String  start, this.spaceDirection, [int this.gap = GAP]) : super.id     (start,ChunkFitChange.SPACE) {}
     
   void alter() {
     int d0 = null;
@@ -101,12 +101,12 @@ class Space extends Change {
   }
 }
 
-class Size extends Change {
+class ChunkFitSize extends ChunkFitChange {
   static const int NONE = 0, HORIZONTAL = 1, VERTICAL = 2, BOTH = 3;
   int resizeType = NONE;
   
-  Size.element(Element start, int this.resizeType) : super.element(start,Change.SIZE) {}
-  Size.id     (String  start, int this.resizeType) : super.id     (start,Change.SIZE) {}
+  ChunkFitSize.element(Element start, int this.resizeType) : super.element(start,ChunkFitChange.SIZE) {}
+  ChunkFitSize.id     (String  start, int this.resizeType) : super.id     (start,ChunkFitChange.SIZE) {}
   
   void alter() {
     Element component; 
@@ -144,12 +144,12 @@ class Size extends Change {
   }
 }
 
-class Align extends Change {
+class ChunkFitAlign extends ChunkFitChange {
   static const int NONE = 0, LEFT = 1, RIGHT = 2, TOP = 3, BOTTOM = 4, VCENTER = 5, HCENTER = 6;
   int alignment = NONE;
   
-  Align.element(Element start, int this.alignment) : super.element(start,Change.ALIGN) {}
-  Align.id     (String  start, int this.alignment) : super.id     (start,Change.ALIGN) {}
+  ChunkFitAlign.element(Element start, int this.alignment) : super.element(start,ChunkFitChange.ALIGN) {}
+  ChunkFitAlign.id     (String  start, int this.alignment) : super.id     (start,ChunkFitChange.ALIGN) {}
   
   void alter() {
     int i;
@@ -184,12 +184,12 @@ class Align extends Change {
   }  
 }
 
-class Stretch extends Change {
+class ChunkFitStretch extends ChunkFitChange {
   static const int NONE = 0, RIGHT = 1, LEFT = 2, TOP = 3, BOTTOM = 4;
   int edge;
   
-  Stretch.element(Element start, int this.edge) : super.element(start,Change.ALIGN) {}
-  Stretch.id     (String  start, int this.edge) : super.id     (start,Change.ALIGN) {}
+  ChunkFitStretch.element(Element start, int this.edge) : super.element(start,ChunkFitChange.ALIGN) {}
+  ChunkFitStretch.id     (String  start, int this.edge) : super.id     (start,ChunkFitChange.ALIGN) {}
   
   void alter() {
     Element component; 
@@ -220,19 +220,19 @@ class Stretch extends Change {
   }
 }
 
-class Chunk extends Change {
+class ChunkFitChunk extends ChunkFitChange {
   static const int NONE = 0, LEFT = 1, RIGHT = 2, TOP = 3, BOTTOM = 4;
   static const SPACEBETWEENCHUNKS = 10;
   int direction = NONE;
   int spaceBetweenChunks = SPACEBETWEENCHUNKS;
   String name = 'none';
   
-  Chunk(int this.direction, [this.spaceBetweenChunks = SPACEBETWEENCHUNKS]) : super.element(null,Change.CHUNK) {}
+  ChunkFitChunk(int this.direction, [this.spaceBetweenChunks = SPACEBETWEENCHUNKS]) : super.element(null,ChunkFitChange.CHUNK) {}
   
   alter() {} // Dummy which is unused, but needed for compile
   
-  void reMove(List<Change> allChunks) {
-    Change vsChunk;
+  void reMove(List<ChunkFitChange> allChunks) {
+    ChunkFitChange vsChunk;
     
     Debug("Enter reMove - name=" + name);
     // Before we begin moving relative to other chunks, we need to move it
@@ -262,7 +262,7 @@ class Chunk extends Change {
     
     for (vsChunk in allChunks) {
       if (vsChunk == this) break;
-      if (vsChunk.changeType == Change.CHUNK) {
+      if (vsChunk.changeType == ChunkFitChange.CHUNK) {
         Debug("reMove - call placeChunk");
         placeChunk(vsChunk);
       }
@@ -270,7 +270,7 @@ class Chunk extends Change {
     Debug("Exit reMove");
   }
   
-  void placeChunk(Chunk vsChunk) {
+  void placeChunk(ChunkFitChunk vsChunk) {
     Element component;
     int moveNeeded = 0;
     //for each component in the current chunk, check against each component in the passed chunk.
@@ -370,13 +370,13 @@ class ChunkFitLayout {
   int leftInset = LEFTINSET;
   int topInset = TOPINSET;
   double hmult = 1.0, vmult = 1.0;
-  List<Change> changes; //private int changeCount = 0;
+  List<ChunkFitChange> changes; //private int changeCount = 0;
   bool firstTime = true;
   List<Element> components;
 
   ChunkFitLayout([String this.name]) { init(); }
   void init() {
-    changes    = new List<Change>();
+    changes    = new List<ChunkFitChange>();
     components = new List<Element>();
   }
   
@@ -411,7 +411,7 @@ class ChunkFitLayout {
 
   void layout() {
     Element component;
-    Change change;
+    ChunkFitChange change;
     int movex, movey;
     
     Debug("Enter setSizes " + name);
@@ -425,12 +425,12 @@ class ChunkFitLayout {
       // Need to process each of the changes
       switch (change.changeType)
       {
-        case Change.NONE   :                 break;
-        case Change.SIZE   : change.alter(); break;
-        case Change.ALIGN  : change.alter(); break;
-        case Change.SPACE  : change.alter(); break;
-        case Change.STRETCH: change.alter(); break;
-        case Change.CHUNK  : (change as Chunk).reMove (this.changes); break;
+        case ChunkFitChange.NONE   :                 break;
+        case ChunkFitChange.SIZE   : change.alter(); break;
+        case ChunkFitChange.ALIGN  : change.alter(); break;
+        case ChunkFitChange.SPACE  : change.alter(); break;
+        case ChunkFitChange.STRETCH: change.alter(); break;
+        case ChunkFitChange.CHUNK  : (change as ChunkFitChunk).reMove (this.changes); break;
         default:
           // Do we need to do an error here?
       }
