@@ -1227,16 +1227,8 @@ class SuperTable implements Resizable {
     splitter = splitGrabber_G.onMouseDown.listen(null);
     splitter.onData(startSplit);
     
-//    resizer = document.onResize.listen(null);
-//    resizer.onData((Event) { reShape(); }); 
-
-    // Now reshape pieces that can change when columns or table are resized or split changed
+    // Now resize and reshape pieces that can change when columns or table are resized or split changed
     resize();
-
-//    resizer = window.onResize.listen(null);
-//    resizer.onData((Event) { Debug("resizing on event"); resize(); });
-    
-    //wrapper_0.on
   }
   
   void insertSplitElements() {    
@@ -1330,6 +1322,9 @@ class SuperTable implements Resizable {
     }
         
     reShape();
+	if (showBackground != null) {
+      setShowBackgroundSize(showBackground);
+	}
   }
     
   void reShape() {    
@@ -2394,16 +2389,24 @@ class SuperTable implements Resizable {
   Element getShowBackground() {
     Element background;
     background = new Element.div();
-    
+
+	setShowBackgroundSize(background);
+
     background.style
       ..position = 'absolute'
       ..left = '0px'
       ..top = '0px'
-      ..height = wrapper_0.clientHeight.toString() + 'px'
-      ..width = wrapper_0.clientWidth.toString() + 'px'
       ..zIndex = (int.parse(wrapper_0.style.zIndex,onError: (_) => 0) + GrabberZIndexOffset + GrabberZIndexOffset).toString()
     ;    
+
     return background;
+  }
+
+  void setShowBackgroundSize(Element background) {
+    background.style
+      ..height = wrapper_0.clientHeight.toString() + 'px'
+      ..width = wrapper_0.clientWidth.toString() + 'px'
+    ;
   }
   
   bool validateEdit(Element td, String s) {
