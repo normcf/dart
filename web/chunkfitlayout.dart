@@ -10,25 +10,29 @@ abstract class ChunkFitChange {
   static const int NONE = 0, SPACE = 1, SIZE = 2, ALIGN = 3, STRETCH = 4, CHUNK = 5;
   static const int CHANGEGROW = 10;
   List<Element> components;
+  Element container;
   Element start;
   bool debug = true;
   int changeType = NONE;
+  String name = 'none';
   
-  ChunkFitChange.element(Element this.start, int this.changeType) {
+  ChunkFitChange.element(Element this.start, int this.changeType, [Element this.container ]) {
+    if (container == null) container = document.body;
     this.components = new List<Element>();
   }
-  ChunkFitChange.id(String id, int this.changeType) {
+  ChunkFitChange.id(String id, int this.changeType, [Element this.container] ) {
+    if (container == null) container = document.querySelector('body');
     this.components = new List<Element>();
-    start = document.querySelector('#' + id);
+    start = container.querySelector('#' + id);
   }
  
   ChunkFitChange addE(Element element) {components.add(element); return this; }
-  ChunkFitChange addId(String id) { return addE(document.querySelector('#' + id)); }
+  ChunkFitChange addId(String id) { return addE(container.querySelector('#' + id)); }
   
   void alter();
     
   void Debug(String s) {
-    if (debug) window.console.debug('ChunkFitChange ' + s);
+    if (debug) window.console.debug('ChunkFitChange ' + name + ' ' + s);
   }
 }
 
@@ -38,8 +42,8 @@ class ChunkFitSpace extends ChunkFitChange {
   int gap = GAP;
   int spaceDirection = DOWN;
   
-  ChunkFitSpace.element(Element start, this.spaceDirection, [int this.gap = GAP]) : super.element(start,ChunkFitChange.SPACE) {}
-  ChunkFitSpace.id     (String  start, this.spaceDirection, [int this.gap = GAP]) : super.id     (start,ChunkFitChange.SPACE) {}
+  ChunkFitSpace.element(Element start, this.spaceDirection, [Element container = null]) : super.element(start,ChunkFitChange.SPACE,container) {}
+  ChunkFitSpace.id     (String  start, this.spaceDirection, [Element container = null]) : super.id     (start,ChunkFitChange.SPACE,container) {}
     
   void alter() {
     int d0 = null;
@@ -96,6 +100,7 @@ class ChunkFitSpace extends ChunkFitChange {
         default:
         /* Maybe someday do an error */
       }
+      
     }
     Debug("Exit reSpace");
   }
@@ -105,8 +110,8 @@ class ChunkFitSize extends ChunkFitChange {
   static const int NONE = 0, HORIZONTAL = 1, VERTICAL = 2, BOTH = 3;
   int resizeType = NONE;
   
-  ChunkFitSize.element(Element start, int this.resizeType) : super.element(start,ChunkFitChange.SIZE) {}
-  ChunkFitSize.id     (String  start, int this.resizeType) : super.id     (start,ChunkFitChange.SIZE) {}
+  ChunkFitSize.element(Element start, int this.resizeType, [Element container = null]) : super.element(start,ChunkFitChange.SIZE,container) {}
+  ChunkFitSize.id     (String  start, int this.resizeType, [Element container = null]) : super.id     (start,ChunkFitChange.SIZE,container) {}
   
   void alter() {
     Element component; 
@@ -148,8 +153,8 @@ class ChunkFitAlign extends ChunkFitChange {
   static const int NONE = 0, LEFT = 1, RIGHT = 2, TOP = 3, BOTTOM = 4, VCENTER = 5, HCENTER = 6;
   int alignment = NONE;
   
-  ChunkFitAlign.element(Element start, int this.alignment) : super.element(start,ChunkFitChange.ALIGN) {}
-  ChunkFitAlign.id     (String  start, int this.alignment) : super.id     (start,ChunkFitChange.ALIGN) {}
+  ChunkFitAlign.element(Element start, int this.alignment, [Element container = null]) : super.element(start,ChunkFitChange.ALIGN,container) {}
+  ChunkFitAlign.id     (String  start, int this.alignment, [Element container = null]) : super.id     (start,ChunkFitChange.ALIGN,container) {}
   
   void alter() {
     int i;
@@ -188,8 +193,8 @@ class ChunkFitStretch extends ChunkFitChange {
   static const int NONE = 0, RIGHT = 1, LEFT = 2, TOP = 3, BOTTOM = 4;
   int edge;
   
-  ChunkFitStretch.element(Element start, int this.edge) : super.element(start,ChunkFitChange.STRETCH) {}
-  ChunkFitStretch.id     (String  start, int this.edge) : super.id     (start,ChunkFitChange.STRETCH) {}
+  ChunkFitStretch.element(Element start, int this.edge, [Element container = null]) : super.element(start,ChunkFitChange.STRETCH,container) {}
+  ChunkFitStretch.id     (String  start, int this.edge, [Element container = null]) : super.id     (start,ChunkFitChange.STRETCH,container) {}
   
   void alter() {
     Element component; 
@@ -235,7 +240,7 @@ class ChunkFitChunk extends ChunkFitChange {
   int spaceBetweenChunks = SPACEBETWEENCHUNKS;
   String name = 'none';
   
-  ChunkFitChunk(int this.direction, [this.spaceBetweenChunks = SPACEBETWEENCHUNKS]) : super.element(null,ChunkFitChange.CHUNK) {}
+  ChunkFitChunk(int this.direction, [this.spaceBetweenChunks = SPACEBETWEENCHUNKS, Element container = null]) : super.element(null,ChunkFitChange.CHUNK, container) {}
   
   alter() {} // Dummy which is unused, but needed for compile
   
@@ -252,10 +257,10 @@ class ChunkFitChunk extends ChunkFitChange {
       case LEFT:
         Debug("reMove - First find the leftmost position of and part of any component in the chunk.");
         for (component in components) {
-          Debug("reMove - farthest=" + farthest.toString() + " c.offsetLeft" + component.offsetLeft.toString());
+          Debug("reMove LEFT RIGHT - farthest=" + farthest.toString() + " c.offsetLeft" + component.offsetLeft.toString());
           farthest = min(component.offsetLeft,farthest);
         }
-        Debug("reMove - farthest=" + farthest.toString());
+        Debug("reMove LEFT RIGHT - final farthest=" + farthest.toString());
         moveChunk(-1 * farthest);
         break;
       case TOP:
@@ -264,6 +269,7 @@ class ChunkFitChunk extends ChunkFitChange {
         for (component in components) {
           farthest = min(component.offsetTop,farthest);
         }
+        Debug("reMove TOP BOTTOM - final farthest=" + farthest.toString());
         moveChunk(-1 * farthest);
         break;
     }
@@ -285,7 +291,10 @@ class ChunkFitChunk extends ChunkFitChange {
     // If a change needs to be made, move this chunk
     Debug("Enter placeChunk 1");
     for (component in components) {
-      moveNeeded = max(moveNeeded,vsChunk.checkChunk(component,this.direction));
+      if ((this.direction == RIGHT) || (this.direction == BOTTOM))
+        moveNeeded = max(moveNeeded,vsChunk.checkChunk(component,this.direction));
+      else
+        moveNeeded = min(moveNeeded,vsChunk.checkChunk(component,this.direction));
     }
     if (moveNeeded != 0) {
       Debug("Before moveChunk moveNeeded=" + moveNeeded.toString() + " name=" + ((name == null) ? "Unknown" : name));
@@ -295,16 +304,16 @@ class ChunkFitChunk extends ChunkFitChange {
   }
   
   int checkChunk(Element r0, int direction) {
-    Rectangle r;
+    //Rectangle r;
     Element component;
-    int moveDistance = 0, rightpos, leftpos;
+    int moveDistance = 0, rightpos, leftpos, toppos, botpos;
     bool firstMove = true;
     
     Debug("Enter checkChunk 1 - r0=" + r0.toString());
     // this is the vsChunk
     // Want to know how far to move r0 (if any)
     for (component in components) {
-      Debug("checkChunk 1 - r=" + r.toString());
+      Debug("checkChunk 1 - r0=" + r0.toString());
       switch (direction) {
         case RIGHT:
           // First see if they could overlap
@@ -314,6 +323,7 @@ class ChunkFitChunk extends ChunkFitChange {
             ((r0.offsetTop                   <  component.offsetTop) && (r0.offsetTop + r0.offsetHeight >  component.offsetTop + component.offsetHeight)) // check for r0 overlap
             ) {
             rightpos = component.offsetLeft + component.offsetWidth + this.spaceBetweenChunks;
+            Debug("checkChunk 1 - rightpos=" + rightpos.toString());
             if (r0.offsetLeft < rightpos) {
               moveDistance = max(moveDistance,rightpos - r0.offsetLeft);
               firstMove = false;
@@ -330,6 +340,7 @@ class ChunkFitChunk extends ChunkFitChange {
             ((r0.offsetTop                   <  component.offsetTop) && (r0.offsetTop + r0.offsetHeight >  component.offsetTop + component.offsetHeight))
             ) {
             leftpos = component.offsetLeft - this.spaceBetweenChunks;
+            Debug("checkChunk 1 - leftpos=" + leftpos.toString());
             if (r0.offsetLeft + r0.offsetWidth > leftpos) {
               moveDistance = min(moveDistance,leftpos - (r0.offsetLeft + r0.offsetWidth));
               firstMove = false;
@@ -339,7 +350,41 @@ class ChunkFitChunk extends ChunkFitChange {
             }
           }
           break;
-          
+        case TOP:  
+          if (
+            ((r0.offsetLeft                  >= component.offsetLeft) && (r0.offsetLeft                  <  component.offsetLeft + component.offsetWidth)) ||
+            ((r0.offsetLeft + r0.offsetWidth >  component.offsetLeft) && (r0.offsetLeft + r0.offsetWidth <= component.offsetLeft + component.offsetWidth)) ||
+            ((r0.offsetLeft                  <  component.offsetLeft) && (r0.offsetLeft + r0.offsetWidth >  component.offsetLeft + component.offsetWidth))
+            ) {
+            toppos = component.offsetTop - this.spaceBetweenChunks;
+            Debug("checkChunk 1 - toppos=" + toppos.toString());
+            if (r0.offsetTop + r0.offsetHeight > toppos) {
+              moveDistance = min(moveDistance,toppos - (r0.offsetTop + r0.offsetHeight));
+              firstMove = false;
+            } else if ((r0.offsetTop + r0.offsetHeight < toppos) && (firstMove)) {
+              moveDistance = toppos - (r0.offsetTop + r0.offsetHeight);
+              firstMove = false; 
+            }
+          }
+          break;
+        case BOTTOM:
+          // First see if they could overlap
+          if (
+            ((r0.offsetLeft                  >= component.offsetLeft) && (r0.offsetLeft                  <  component.offsetLeft + component.offsetWidth)) ||
+            ((r0.offsetLeft + r0.offsetWidth >  component.offsetLeft) && (r0.offsetLeft + r0.offsetWidth <= component.offsetLeft + component.offsetWidth)) ||
+            ((r0.offsetLeft                  <  component.offsetLeft) && (r0.offsetLeft + r0.offsetWidth >  component.offsetLeft + component.offsetWidth))
+            ) {
+            botpos = component.offsetTop + component.offsetHeight + this.spaceBetweenChunks;
+            Debug("checkChunk 1 - botpos=" + botpos.toString());
+            if (r0.offsetTop < botpos) {
+              moveDistance = max(moveDistance,botpos - r0.offsetTop);
+              firstMove = false;
+            } else if ((r0.offsetTop > botpos) && (firstMove)) {
+              moveDistance = botpos - r0.offsetTop;
+              firstMove = false; 
+            }
+          }
+          break;
       }
     }
     Debug("Exit checkChunk 1 moveDistance=" + moveDistance.toString());
@@ -349,16 +394,16 @@ class ChunkFitChunk extends ChunkFitChange {
   void moveChunk(int offset) {
     Element component;
     // for each component in this chunk, move it the offset given
-    Debug("Enter moveChunk xoffset=" + offset.toString());
+    Debug("Enter moveChunk offset=" + offset.toString());
     for (component in components) {
       switch (direction) {
-        case   LEFT:  component.style.left = (component.offsetLeft - offset).toString() + 'px'; break;
+        case   LEFT:  component.style.left = (component.offsetLeft + offset).toString() + 'px'; break;
         case  RIGHT:  component.style.left = (component.offsetLeft + offset).toString() + 'px'; break;
-        case    TOP:  component.style.top  = (component.offsetTop  - offset).toString() + 'px'; break;
+        case    TOP:  component.style.top  = (component.offsetTop  + offset).toString() + 'px'; break;
         case BOTTOM:  component.style.top  = (component.offsetTop  + offset).toString() + 'px'; break;
       }
     }
-    Debug("Exit moveChunk xoffset=" + offset.toString());
+    Debug("Exit moveChunk offset=" + offset.toString());
   }
 }
 
@@ -377,21 +422,23 @@ class ChunkFitLayout {
   int interChunkSpace = INTERCHUNKSPACE;
   int leftInset = LEFTINSET;
   int topInset = TOPINSET;
-  int h = 0, w = 0;
   double hmult = 1.0, vmult = 1.0;
   List<ChunkFitChange> changes; //private int changeCount = 0;
   bool firstTime = true;
+  Element container;
   List<Element> components;
 
-  ChunkFitLayout([String this.name]) { init(); }
+  ChunkFitLayout([String this.name, Element this.container = null]) { init(); }
   void init() {
     changes    = new List<ChunkFitChange>();
     components = new List<Element>();
+    if (container == null) container = document.body;
   }
   
   ChunkFitLayout addE(Element component) {
     int h, w;
     component.style.position = 'absolute';
+    
     Debug('id=' + component.id + ' clientWidth=' + component.clientWidth.toString() + ' clientHeight=' + component.clientHeight.toString() );
     Debug('id=' + component.id + ' offsetWidth=' + component.offsetWidth.toString() + ' offsetHeight=' + component.offsetHeight.toString() );
     h = component.offsetHeight;
@@ -408,14 +455,14 @@ class ChunkFitLayout {
     components.add(component);
     return this;
   }
-  ChunkFitLayout addId(String id) { return addE(document.querySelector('#' + id)); }
+  ChunkFitLayout addId(String id) { return addE(container.querySelector('#' + id)); }
   
 //  ChunkFitLayout addChange(Change change) {    
 //    changes.add(change);
 //    return this;
 //  }
 //  
-  Debug(String s) { if (debug) window.console.debug('ChunkFit ' + s);}
+  Debug(String s) { if (debug) window.console.debug('ChunkFit ' + name + ' ' + s);}
 
 
   void layout() {
@@ -423,7 +470,7 @@ class ChunkFitLayout {
     ChunkFitChange change;
     int movex, movey;
     
-    Debug("Enter setSizes " + name);
+    Debug("Enter layout " + name);
     
     if ( ! firstTime ) return;
     firstTime = false;
@@ -465,17 +512,20 @@ class ChunkFitLayout {
     int minx = 100000000; // would prefer to use int.MAX_VALUE; but don't know how yet
     int miny = 100000000; // would prefer to use int.MAX_VALUE; but don't know how yet
     for (component in components) {
+      Debug("layout " + name + " " + component.toString() + " id=" + component.id + " offsetLeft=" + component.offsetLeft.toString() + " offsetTop=" + component.offsetTop.toString() );
       minx = min(minx,component.offsetLeft);
       miny = min(miny,component.offsetTop);
     }
     
     Debug("How far do we need to move everything?");
     Debug("leftInset=" + leftInset.toString() + ' minx=' + minx.toString());
+    Debug("topInset=" + topInset.toString() + ' miny=' + miny.toString());
     movex = leftInset - minx;
     movey = topInset  - miny;
     
     offsetAll(movex, movey);
   }
+  
   void offsetAll(int offsetx, offsety) {
     Element component;
     // for each component in this chunk, move it the offset given
@@ -485,7 +535,7 @@ class ChunkFitLayout {
       component.style.top  = (component.offsetTop  + offsety).toString() + 'px';
     }
   }
-  
+
   // Call these afterwards if you want to size your contailer to fit
   int getWidth() {
     int w = 0, right;

@@ -7,6 +7,13 @@ import '../supertable.dart';
 import '../chunkfitlayout.dart';
 import '../supertabview.dart';
 import '../supertablesaveasfods.dart';
+import '../supermenu.dart';
+
+// The menu (really simple example) needs an action to do anything useful
+class Open_seller extends SuperMenuAction {
+  void action() {
+  }
+}
 
 void main() {
   //t1 = new SuperTable.presizedContainer('testtable1');
@@ -195,7 +202,16 @@ void main() {
   cfl.changes.add(chunk2);
   
   cfl.layout();
+
+  // The menu (really simple example) (See the class Open_seller defined above)
+  SuperMenu sampleMenu;
+  sampleMenu =  new SuperMenu('mainMenu');
+  sampleMenu.init();
+
+  sampleMenu.addAction("sellerQuick",new Open_seller());
  
+  // Now the tabview
+
   SuperTable t3;
   t3 = new SuperTable.presizedContainer('tabbedtable'); t3.init();
    

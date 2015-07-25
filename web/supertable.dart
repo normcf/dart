@@ -5,8 +5,8 @@ library SuperTable;
 
 import 'dart:html';
 import 'dart:async';
-
-import 'resizable.dart';
+import 'package:intl/intl.dart';
+import "resizable.dart";
 
 /*****************************************************************/
 /*****************************************************************/
@@ -524,7 +524,7 @@ abstract class SuperTableSaveAs {
   bool debug;
   int rowsToSave = ALL;
   // Someday, columnsToSave = ALL;
-  FileSystem _filesystem;
+  //FileSystem _filesystem;
   
   SuperTableSaveAs({this.debug}) { }
   
@@ -787,6 +787,59 @@ class SuperTableComputedFieldColumnIntSum extends SuperTableComputedFieldColumn 
     return val;
   }
 }
+
+class SuperTableComputedFieldColumnMoneySum extends SuperTableComputedFieldColumn {
+  double sum = 0.0;
+  final oCcy = new NumberFormat("#,##0.00", "en_US");
+  
+  SuperTableComputedFieldColumnMoneySum(SuperTable table, String targetColumnClass, [int mode] ) : super(table, targetColumnClass, mode) {}
+  
+  void selectedRowFlippedTo(Element row, bool selected) {
+    sum += ((selected) ? 1 : -1) * getColumnValue(row);
+  }
+  
+  void selectionChanged() {
+    // Need to find the footer record with the targetColumnClass and update it
+    Element td;
+    td = table.footerTable.querySelector('.' + targetColumnClass);
+    td.text = sum.toString();
+    if (table.isSplit) {
+      td = table.splitFooterTable.querySelector('.' + targetColumnClass);
+      td.text = oCcy.format(sum);
+    }    
+  }
+  
+  void refresh() {
+    Element tr;
+    List<Element> trs;
+    
+    sum = 0.0;    
+    trs = table.table.querySelectorAll('tr');
+    for (tr in trs) {
+      if (mode == SuperTableComputedField.MODEALL) sum += getColumnValue(tr);
+      else {
+        if (tr.classes.contains(table.SelectedRowClass)) {
+          if (mode == SuperTableComputedField.MODESELECTED) sum += getColumnValue(tr);
+        } else {
+          if (mode == SuperTableComputedField.MODEUNSELECTED) sum += getColumnValue(tr);
+        }   
+      }
+    }
+    
+    selectionChanged();    
+  }
+  
+  double getColumnValue(Element row) {
+    double val;
+    Element cell;
+    
+    cell = row.querySelector('.' + targetColumnClass);
+    val = double.parse(cell.text, (_) { return 0.0; } );
+    
+    return val;
+  }
+}
+
 
 
 /*****************************************************************/
@@ -1081,8 +1134,19 @@ class SuperTable implements Resizable {
     
     // If necessary, move the footer cells into the footer table
     if (hasFooter) {
+      Element tfootbody, tfootrow;
       tfoot = table.querySelector('tfoot');
-      footerTable.insertAdjacentElement('afterBegin', tfoot);
+      tfootrow = tfoot.querySelector('tr');
+      //Element tfootbody = new Element.html
+      //footerTable.insertAdjacentHtml('afterBegin', '<tbody></tbody>');
+      //tfootbody = footerTable.querySelector('tbody');
+      tfootbody = new Element.tag('tbody');
+      
+      Debug("tfootbody=" + tfootbody.toString());
+      //tfootbody.insertAdjacentHtml('afterBegin', tfoot.innerHtml);
+      tfootbody.insertAdjacentElement('afterBegin', tfootrow);
+      footerTable.insertAdjacentElement('afterBegin', tfootbody); 
+      tfoot.remove();
     }
     
     // Now build wrapper to surround the main and the grabber
@@ -1309,6 +1373,7 @@ class SuperTable implements Resizable {
     mainHolder_3.style.height = wrapper_0.clientHeight.toString() + 'px';    
     splitGrabber_G.style.height = mainHolder_3.style.height;
     tableWrapper_2.style.height = mainHolder_3.style.height;
+    Debug("resize - headerWrapperHeight=" + headerWrapperHeight.toString() + ' footerWrapperHeight=' + footerWrapperHeight.toString());
     bodyWrapper_B.style.height = (tableWrapper_2.clientHeight - (headerWrapperHeight + footerWrapperHeight)).toString() + 'px';
 
     if (isSplit) {
@@ -1322,9 +1387,9 @@ class SuperTable implements Resizable {
     }
         
     reShape();
-	if (showBackground != null) {
+  if (showBackground != null) {
       setShowBackgroundSize(showBackground);
-	}
+  }
   }
     
   void reShape() {    
@@ -1880,7 +1945,7 @@ class SuperTable implements Resizable {
     mouseUp.cancel();
     if (nodeAdded) {
       Debug('endColumnMove pos.y=' + pos.y.toString() + ' offsetTop=' + wrapper_0.offsetTop.toString());
-      if ((pos.y > wrapper_0.offsetTop) && (pos.y < wrapper_0.offsetTop + wrapper_0.offsetHeight)) {
+      //if ((pos.y > wrapper_0.offsetTop) && (pos.y < wrapper_0.offsetTop + wrapper_0.offsetHeight)) {
         Debug("endColumnMove we're in the header, but are we in a column??");
         Debug('endColumnMove pos.x=' + pos.x.toString() + ' offsetLeft=' + headerWrapper_H.offsetLeft.toString());
         Debug('endColumnMove pos.x=' + pos.x.toString() + ' clientLeft=' + headerWrapper_H.clientLeft.toString());
@@ -1895,7 +1960,7 @@ class SuperTable implements Resizable {
           // Need to find column in List 
           columnMoveMove(follows);
         }
-      }
+      //}
        
       draggingView.remove();
     }
@@ -2015,15 +2080,17 @@ class SuperTable implements Resizable {
     th = headerTable.querySelector('th:nth-of-type(' + colPosition.toString() + ')');
     // BUT, we don't want the resizing/moving divs
     td = th.querySelector('.' + ColumnMoverHolderClass);
-    Debug('startColumnMove header text=' + td.text);
-    Debug('startColumnMove colClass=' + columnClassName);
+    Debug('createDraggingView header text=' + td.text);
+    Debug('createDraggingView colClass=' + columnClassName);
     tablestuff = '<thead><tr><th class="' + columnClassName + '">' + td.text + '</th></tr></thead>';
     tablestuff += '<tbody>';
     
     rows = table.querySelectorAll('tr');
+    Debug('createDraggingView rows.length=' + rows.length.toString());
     for (row in rows) {
       cell = row.querySelector('td:nth-of-type(' + colPosition.toString() + ')');
-      tablestuff += '<row><td class="' + columnClassName + '">' + cell.text + '</td></tr>';
+      Debug('createDraggingView adding cell.text=' + cell.text);
+      tablestuff += '<tr><td class="' + columnClassName + '">' + cell.text + '</td></tr>';
       if (rowcount > 5) break; // Just do the first 5 rows for now.  Later we will figure out the number of rows in the scroll area
       rowcount++;
     }
@@ -2031,15 +2098,15 @@ class SuperTable implements Resizable {
     
     docx = th.offsetLeft;
     draggingView = new Element.table();
+    draggingView.innerHtml = tablestuff;
+    Debug('createDraggingView innerHtml = ' + draggingView.innerHtml);
     draggingView
       ..classes.add(BodyTableClass)
       ..classes.add('movingColumnTable')
-      ..insertAdjacentHtml('afterBegin', tablestuff)
       ..style.tableLayout = 'fixed'
       ..style.whiteSpace = "nowrap"
       ..style.position = "absolute"
       ..style.left = docx.toString() + 'px'
-      ..style.top = th.documentOffset.y.toString() + 'px'
       ..style.top = '0px'
       ..style.opacity = ".7"
       ..style.zIndex = (int.parse(headerTable.style.zIndex,onError: (_) => 0) + GrabberZIndexOffset).toString();
@@ -2390,7 +2457,7 @@ class SuperTable implements Resizable {
     Element background;
     background = new Element.div();
 
-	setShowBackgroundSize(background);
+  setShowBackgroundSize(background);
 
     background.style
       ..position = 'absolute'
@@ -2545,6 +2612,17 @@ class SuperTable implements Resizable {
     document.body.children.remove(outerdiv);
   }
   
+  void removeBodyRows() {
+    Element row;
+    ElementList<Element> rows;
+    rows = table.querySelectorAll('tbody > tr');
+    Debug('rows.length=' + rows.length.toString());
+    for (row in rows) {
+      row.remove();
+    }
+  }
+  
+  
   // Call refreshBody after the cells are filled or refilled.
   void refreshBody() {
     List<Element> rows, cells, columns;
@@ -2562,11 +2640,12 @@ class SuperTable implements Resizable {
       colpos = 0;
       for (column in columns) {
         colpos = int.parse(column.getAttribute(InitialDataPosAttrName));
+        Debug('refreshBody - colpos=' + colpos.toString());
         cell = cells[colpos - 1];
         cell.setAttribute(InitialDataPosAttrName, colpos.toString());
         cell.classes.add(column.getAttribute(DataTypeAttrName)); 
         cell.classes.add(column.getAttribute(ColumnClassName));
-        colpos++; // For now we will not check the data for missing cells
+        //colpos++; // For now we will not check the data for missing cells
       }
       rowId++;
     }
@@ -2576,6 +2655,7 @@ class SuperTable implements Resizable {
     if (rows.length > 0) { // If there are no data rows, just skip this entirely
       bool outoforder = true;
       int pos, i;
+      int debugCount = 0;
       while (outoforder) {
         outoforder = false; // Now let's see if we get through the loop
         pos = 0;
@@ -2584,6 +2664,8 @@ class SuperTable implements Resizable {
           colpos = int.parse(column.getAttribute(InitialDataPosAttrName));
           cellPos = int.parse(cells[pos].getAttribute(InitialDataPosAttrName));
           Debug('colpos=' + colpos.toString() + ' cellPos=' + cellPos.toString());
+          debugCount++;
+          if (debugCount > 100) return;
           if (cellPos != colpos) {
             // They're not in the correct order
             // gotta find the correct data that should be here
@@ -2594,11 +2676,12 @@ class SuperTable implements Resizable {
                 break;
               }
             }
-            columnMoveMoveData(i, pos);
+            columnMoveMoveData(i + 1, pos);
             outoforder = true;
             break;
           }
           pos++;
+          if (pos > 100) return; // Cheat exit for testing
         }
       }
     }
@@ -2616,6 +2699,7 @@ class SuperTable implements Resizable {
   void columnMoveMoveData(int movingColumnPos, int follows) {
     List<Element> rows;
     Element row, columnToMove, columnToFollow;
+    Debug('columnMoveMoveData moving=' + movingColumnPos.toString() + ' follows=' + follows.toString());
     rows = table.querySelectorAll('tr');
     for (row in rows) {
       columnToMove = row.querySelector('td:nth-of-type(' + movingColumnPos.toString() + ')');

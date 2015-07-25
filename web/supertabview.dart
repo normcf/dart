@@ -8,16 +8,17 @@ import 'dart:async';
 
 import 'resizable.dart';
 import 'supertable.dart';
-//import 'dart:math';
 
 abstract class TabHandler {
   static int TABWIDTH = 40;
   int tabWidth = TABWIDTH;
 
-  bool unFormatted = true;
+  bool unPrepared = true;
   bool fetched = false;
   bool autoRefresh = false; // Should the tab refresh data each time it is selected?
   SuperTabView tabView = null;
+  String name = 'Unknown';
+  bool debug = false;
   Element source; // Probably an li
   Element content;
   Element tabHolder;
@@ -25,38 +26,44 @@ abstract class TabHandler {
   Resizable resizable = null; // When the inside space of the contents changes, you must call resizable.resize()
   
   TabHandler.element(SuperTabView this.tabView, Element this.source) {tabView.tabs.add(this);}
-  TabHandler.id(SuperTabView this.tabView, String id) { this.source = document.querySelector('#' + id); tabView.tabs.add(this); }
+  TabHandler.id(SuperTabView this.tabView, String id) { this.source = document.getElementById(id); tabView.tabs.add(this); }
   
+  void setThisTab() {
+    if (tabView.currentTab != null) {
+      tabView.currentTab.content.remove();
+      tabView.currentTab.tabHolder.classes.remove(tabView.SelectedTabClass);
+    }
+    tabView.currentTab = this;
+    tabView.currentTab.tabHolder.classes.add(tabView.SelectedTabClass);
+    this.content.style
+      ..width = tabView.tabContent.clientWidth.toString() + 'px'
+      ..height = tabView.tabContent.clientHeight.toString() + 'px';    
+  }
   void init() {}
-  void firstTime() {}
-  void refresh();
+  void prepare() {}
+  void refresh(MouseEvent me);
   void chosen(MouseEvent me); // Needs to fill the tab contents
   
   void resize(){ if (resizable != null) resizable.resize(); } // Subclass may override or extend
-  
+  void Debug(String s) { if (debug) window.console.debug('TabHandler ' + name + ':' + s); }
 }
 
 class PlainContentTabHandler extends TabHandler {
   PlainContentTabHandler.id(SuperTabView tabView, String id) : super.id(tabView, id) {
     this.content = source.querySelector('div');
   }
-  refresh() {}
+  refresh(MouseEvent me) {}
   chosen(MouseEvent me) {
     tabView.Debug('clicked ' + source.id);
-    tabView.currentTab.content.remove();
-    tabView.currentTab.tabHolder.classes.remove(tabView.SelectedTabClass);
-    tabView.currentTab = this;
-    tabView.currentTab.tabHolder.classes.add(tabView.SelectedTabClass);
+    setThisTab();
     tabView.tabContent.insertAdjacentElement('afterBegin', this.content);
-    this.content.style
-      ..width = tabView.tabContent.clientWidth.toString() + 'px'
-      ..height = tabView.tabContent.clientHeight.toString() + 'px';
   }
   @override
   resize() {
     this.content.style
       ..width = tabView.tabContent.clientWidth.toString() + 'px'
       ..height = tabView.tabContent.clientHeight.toString() + 'px';
+    tabView.tabContent.insertAdjacentElement('afterBegin', this.content);
     super.resize();
   }
 }
@@ -67,16 +74,10 @@ class SuperTableTabHandler extends TabHandler {
     resizable = superTable;
     this.content = superTable.wrapper_0;
   }
-  refresh() {}
+  refresh(MouseEvent me) {}
   chosen(MouseEvent me) {
     tabView.Debug('clicked ' + source.id);
-    tabView.currentTab.content.remove();
-    tabView.currentTab.tabHolder.classes.remove(tabView.SelectedTabClass);
-    tabView.currentTab = this;
-    tabView.currentTab.tabHolder.classes.add(tabView.SelectedTabClass);
-    this.content.style
-      ..width = tabView.tabContent.clientWidth.toString() + 'px'
-      ..height = tabView.tabContent.clientHeight.toString() + 'px';
+    setThisTab();
     tabView.tabContent.insertAdjacentElement('afterBegin', this.content);
     resize();
   }
@@ -95,7 +96,7 @@ class SuperTabView {
   static const String CONTAINERCLASSNAME = 'tabview_wrapper';
   static const String TABDISPLAYATTRNAME = 'tabtext';
   static const String TABBUTTONCLASSNAME = 'tabButton';
-  static const String SELECTEDTABCLASS   = 'selecteTabButton';
+  static const String SELECTEDTABCLASS   = 'selectedTabButton';
   
   String TabDisplayAttrName = TABDISPLAYATTRNAME;
   String ContainerClassName = CONTAINERCLASSNAME;
@@ -117,8 +118,6 @@ class SuperTabView {
   List<TabHandler> tabs;
   TabHandler currentTab = null;
   
-  
-  
   SuperTabView.element (Element this.listHolder) {
     tabs= new List<TabHandler>();
     listId = listHolder.id;
@@ -128,7 +127,8 @@ class SuperTabView {
   SuperTabView.id (String this.listId) {
     tabs= new List<TabHandler>();
     listHolder = document.getElementById(listId);
-    init();
+    if (listHolder != null) init();
+    else Debug("Could not find listId=" + listId);
   }
   
   void startTabId(String id) {
@@ -188,7 +188,7 @@ class SuperTabView {
     
     tabContent = new Element.div();
     tabContent.style
-      ..position = 'absolute'
+      ..position = 'relative'
       ..left = '0px';
     wrapper_0.insertAdjacentElement('beforeEnd', tabContent);
   }
@@ -196,12 +196,18 @@ class SuperTabView {
   void begin() {
     // Need to generate the tab holders
     int tabWidth, left = 0;
-    StreamSubscription<MouseEvent> clicker;
+    StreamSubscription<MouseEvent> clicker, doubleClick;
+    
     TabHandler tab;
     for (tab in tabs) {
+      Debug('before Element.html - TabDisplayAttrName=' + TabDisplayAttrName);
+      Debug('before Element.html - tab.source=' + tab.source.toString());
+      Debug('before Element.html - tab.source.getAttribute=' + tab.source.getAttribute(TabDisplayAttrName));
       tab.tabHolder = new Element.html('<button class="tabButton">' + tab.source.getAttribute(TabDisplayAttrName) + '</button>');
       clicker = tab.tabHolder.onClick.listen(null);
       clicker.onData(tab.chosen);
+      doubleClick = tab.tabHolder.onDoubleClick.listen(null);
+      doubleClick.onData(tab.refresh);
       tab.tabHolder.style
         ..top = '0px'
         ..position = 'absolute'
@@ -227,11 +233,11 @@ class SuperTabView {
     // Remove the list from the DOM which should take some work away from the browser   
     listHolder.remove();
     
-
+    Debug('before setting default tab');
     if (currentTab == null) {
       // Find the first tab
-      currentTab = tabs[0]; // We aren't going to bother checking if there are no tabs.  No tabs are useless!!
-      currentTab.chosen(null);
+      //currentTab = ; // We aren't going to bother checking if there are no tabs.  No tabs are useless!!
+      tabs[0].chosen(null);
     }    
     
     resize();

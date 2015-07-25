@@ -13,9 +13,10 @@
     <meta name="scaffolded-by" content="https://github.com/google/stagehand">
     <title>testwebubersimple</title>
 
-    <link rel="stylesheet" href="../styles/main.css">
-    <link rel="stylesheet" href="../styles/supertable.css">
-    <link rel="stylesheet" href="../styles/supertabview.css">
+    <link rel="stylesheet" href="../styles/main.css" />
+    <link rel="stylesheet" href="../styles/supertable.css" />
+    <link rel="stylesheet" href="../styles/supertabview.css" />
+	<link rel="stylesheet" href="../styles/supermenu.css" />
 </head>
 
 <body>
@@ -278,11 +279,36 @@ The two Chunks were horizontally slid together.
 <div id='labela3'>short Labela3:</div><textarea id='texta3' rows="1" cols="6">valuea3</textarea>
 <div id='labela4'>short Labela4:</div><textarea id='texta4' rows="1" cols="12">valuea4</textarea>
 </div>
-<textarea id='labelx' rows="1" cols="10" style='white-space:nowrap; border:0;overflow:hidden;'>short Label3:</textarea>
+
+<p>
+Lots of Menus out there.
+
+<ol id="mainMenu" style="visibility: hidden;">
+	<li superMenuWidth="30" superMenuText="File"></li>
+	<li superMenuWidth="55" superMenuText="Clients">
+	<ol id="clientMenu" superMenuXOffset="0" superMenuYOffset="-5">
+		<li superMenuWidth="35" superMenuText="Seller">
+		<ol id="clientSellerMenu" superMenuXOffset="-5" superMenuYOffset="-3">
+			<li id="sellerQuick" superMenuWidth="45" superMenuText="Quick"></li>
+			<li superMenuWidth="45" superMenuText="Search"></li>
+			<li superMenuWidth="40" superMenuText="New"></li>
+		</ol>
+		</li>
+		<li superMenuWidth="45" superMenuText="Buyer">
+		<ol id="clientBuyerMenu" superMenuXOffset="-5" superMenuYOffset="-3">
+			<li superMenuWidth="45" superMenuText="Quick"></li>
+			<li superMenuWidth="45" superMenuText="Search"></li>
+			<li superMenuWidth="40" superMenuText="New"></li>
+		</ol>
+		</li>
+	</ol>
+	<li superMenuWidth="43" superMenuText="Items"></li>
+	<li superMenuWidth="60" superMenuText="Reference"></li>
+</ol>
 
 <p>
 Lots of Tab demos out there, so this is nothing spectacular.
-Try resizing to se the scroll bar go away when it gets wide enough.
+Try resizing to see the scroll bar go away when it gets wide enough.
 If a Supertable was inside, resizing would resize it to fit the content area.
 I'll add a demo of this later.
 Cannot reorder the tabs yet.
@@ -368,6 +394,13 @@ bee colony collapse disorder, elections, etc.</div></li>
     <td>space</td>
   </tr>
 </tbody>
+<tfoot>
+<td></td>
+<td>stuff</td>
+<td></td>
+<td></td>
+<td></td>
+</tfoot>
 </table>
 </div>
 </li>
