@@ -8,8 +8,9 @@ import 'dart:async';
 
 import 'resizable.dart';
 import 'supertable.dart';
+//import 'dart:math';
 
-abstract class TabHandler {
+abstract class TabHandler extends Object with Lockable implements Resizable, Resizer {
   static int TABWIDTH = 40;
   int tabWidth = TABWIDTH;
 
@@ -18,7 +19,7 @@ abstract class TabHandler {
   bool autoRefresh = false; // Should the tab refresh data each time it is selected?
   SuperTabView tabView = null;
   String name = 'Unknown';
-  bool debug = false;
+  bool debug = true;
   Element source; // Probably an li
   Element content;
   Element tabHolder;
@@ -26,7 +27,11 @@ abstract class TabHandler {
   Resizable resizable = null; // When the inside space of the contents changes, you must call resizable.resize()
   
   TabHandler.element(SuperTabView this.tabView, Element this.source) {tabView.tabs.add(this);}
-  TabHandler.id(SuperTabView this.tabView, String id) { this.source = document.getElementById(id); tabView.tabs.add(this); }
+  TabHandler.id(SuperTabView this.tabView, String id) {
+    Debug("Enter TabHandler Constructor"); 
+    this.source = document.getElementById(id); 
+    tabView.tabs.add(this); 
+  }
   
   void setThisTab() {
     if (tabView.currentTab != null) {
@@ -42,10 +47,22 @@ abstract class TabHandler {
   void init() {}
   void prepare() {}
   void refresh(MouseEvent me);
+  void tabClicked(MouseEvent me) {
+    if (! tabView.locked) chosen(me);
+  }
   void chosen(MouseEvent me); // Needs to fill the tab contents
   
+  void setResizable(Resizable resizable,bool active) {
+    this.resizable = (active) ? resizable : null;
+  }
+  
+  @override
+  bool lock(bool locked, [control = null] ) {
+    super.lock(locked, control);
+    if (tabView != null) tabView.lock(locked, control);
+  }
   void resize(){ if (resizable != null) resizable.resize(); } // Subclass may override or extend
-  void Debug(String s) { if (debug) window.console.debug('TabHandler ' + name + ':' + s); }
+  void Debug(String s) { if (debug) print('TabHandler ' + name + ':' + s); }
 }
 
 class PlainContentTabHandler extends TabHandler {
@@ -71,6 +88,12 @@ class PlainContentTabHandler extends TabHandler {
 class SuperTableTabHandler extends TabHandler {
   SuperTable superTable;
   SuperTableTabHandler.id(SuperTabView tabView, String id, SuperTable this.superTable) : super.id(tabView, id) { 
+    resizable = this.superTable;
+    this.content = superTable.wrapper_0;
+  }
+  SuperTableTabHandler.empty(SuperTabView tabView, String id) : super.id(tabView, id) ;
+  setSuperTable(SuperTable superTable) {
+    this.superTable = superTable;
     resizable = superTable;
     this.content = superTable.wrapper_0;
   }
@@ -91,10 +114,10 @@ class SuperTableTabHandler extends TabHandler {
    }
 }
 
-class SuperTabView {
+class SuperTabView extends Object with Lockable implements Resizable {
   static const TABROWHEIGHT              = 30;
   static const String CONTAINERCLASSNAME = 'tabview_wrapper';
-  static const String TABDISPLAYATTRNAME = 'tabtext';
+  static const String TABDISPLAYATTRNAME = 'data-tabtext';
   static const String TABBUTTONCLASSNAME = 'tabButton';
   static const String SELECTEDTABCLASS   = 'selectedTabButton';
   
@@ -205,7 +228,7 @@ class SuperTabView {
       Debug('before Element.html - tab.source.getAttribute=' + tab.source.getAttribute(TabDisplayAttrName));
       tab.tabHolder = new Element.html('<button class="tabButton">' + tab.source.getAttribute(TabDisplayAttrName) + '</button>');
       clicker = tab.tabHolder.onClick.listen(null);
-      clicker.onData(tab.chosen);
+      clicker.onData(tab.tabClicked);
       doubleClick = tab.tabHolder.onDoubleClick.listen(null);
       doubleClick.onData(tab.refresh);
       tab.tabHolder.style
@@ -242,7 +265,7 @@ class SuperTabView {
     
     resize();
   }
-  
+    
   void resize() {
     Debug('tabHolderWidth=' + tabHolderWidth.toString() + ' tabsWrapper.clientWidth=' + tabsWrapper.clientWidth.toString());
     tabsWrapper.style.width = wrapper_0.clientWidth.toString() + 'px';
@@ -306,6 +329,6 @@ class SuperTabView {
   }
   
   void Debug(String s) {
-    if (debug) window.console.debug('SuperTabView ' + s);
+    if (debug) print('SuperTabView ' + s);
   }
 }

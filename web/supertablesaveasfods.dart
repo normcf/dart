@@ -407,7 +407,7 @@ class SuperTableSaveAsFODS extends SuperTableSaveAs {
       col = cols[pos];
       dataTypeName = col.getAttribute(table.DataTypeAttrName);
 
-      s.write(buildDataCell(dataTypeName, td));
+      s.write(buildDataCell(dataTypeName, td, table.CellValueAttrName));
       pos++;
     }
     
@@ -417,7 +417,7 @@ class SuperTableSaveAsFODS extends SuperTableSaveAs {
   }
 
   
-  String buildDataCell(String dataTypeName, Element td) {
+  String buildDataCell(String dataTypeName, Element td, String cellValueAttrName ) {
     StringBuffer s;
        
     s = new StringBuffer();
@@ -427,13 +427,29 @@ class SuperTableSaveAsFODS extends SuperTableSaveAs {
       s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
       s.writeln(TABLEDATASTRINGCELLEND);
     } else if (dataTypeName == 'money') {
-      s.write(TABLEDATAMONEYCELLSTARTPREFIX); s.write(td.text); s.writeln(TABLEDATAMONEYCELLSTARTSUFFIX); 
-      s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
-      s.writeln(TABLEDATAMONEYCELLEND);
+      String value;
+     value = td.getAttribute(cellValueAttrName);
+     if (value != null) { 
+        s.write(TABLEDATAMONEYCELLSTARTPREFIX); s.write(td.text); s.writeln(TABLEDATAMONEYCELLSTARTSUFFIX); 
+        s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
+        s.writeln(TABLEDATAMONEYCELLEND);
+     } else {
+        s.writeln(TABLEDATASTRINGCELLSTART);
+        s.write(TABLEDATACELLCONTENTSTART); s.writeln(TABLEDATACELLCONTENTEND);
+        s.writeln(TABLEDATASTRINGCELLEND);
+      }  
    } else if (dataTypeName == 'integer') {
-      s.write(TABLEDATAINTCELLSTARTPREFIX); s.write(td.text); s.writeln(TABLEDATAINTCELLSTARTSUFFIX); 
-      s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
-      s.writeln(TABLEDATAINTCELLEND);
+     String value;
+     value = td.getAttribute(cellValueAttrName);
+     if (value != null) { 
+        s.write(TABLEDATAINTCELLSTARTPREFIX); s.write(td.text); s.writeln(TABLEDATAINTCELLSTARTSUFFIX); 
+        s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
+        s.writeln(TABLEDATAINTCELLEND);
+     } else {
+       s.writeln(TABLEDATASTRINGCELLSTART);
+       s.write(TABLEDATACELLCONTENTSTART); s.writeln(TABLEDATACELLCONTENTEND);
+       s.writeln(TABLEDATASTRINGCELLEND);
+     }   
     } else if (dataTypeName == 'datetime') {
       s.writeln(TABLEDATADATETIMECELLSTART);
       s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
@@ -441,15 +457,24 @@ class SuperTableSaveAsFODS extends SuperTableSaveAs {
     } else if (dataTypeName == 'date') {  
       // the value must be in format YYYY-MM-DD.  The contents can be however.
       s.write(TABLEDATADATECELLSTARTPREFIX); 
-      s.write(td.text.substring(0,4) + '-' + td.text.substring(5,7) + '-' + td.text.substring(8,10)); 
-      s.writeln(TABLEDATAMONEYCELLSTARTSUFFIX); 
-      s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
-      s.writeln(TABLEDATADATECELLEND);
+      String value;
+      value = td.getAttribute(cellValueAttrName);
+      if (value != null) { 
+        s.write(value.substring(0,4) + '-' + value.substring(5,7) + '-' + value.substring(8,10)); 
+        s.writeln(TABLEDATADATECELLSTARTSUFFIX); 
+        s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
+        s.writeln(TABLEDATADATECELLEND);
+      } else {
+        s.writeln(TABLEDATASTRINGCELLSTART);
+        s.write(TABLEDATACELLCONTENTSTART); s.writeln(TABLEDATACELLCONTENTEND);
+        s.writeln(TABLEDATASTRINGCELLEND);
+      }
     } else {  
       s.writeln(TABLEDATASTRINGCELLSTART);
       s.write(TABLEDATACELLCONTENTSTART); s.write(td.text); s.writeln(TABLEDATACELLCONTENTEND);
       s.writeln(TABLEDATASTRINGCELLEND);
     }
+    // Need to add datetimne in here sometime
     
     return s.toString();
   }

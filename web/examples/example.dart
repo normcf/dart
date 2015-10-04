@@ -2,6 +2,12 @@
 // is governed by a LGPL-style license that can be found in the LICENSE file.
 
 import 'dart:html';
+import 'dart:async';
+
+import 'package:intl/intl.dart';
+import 'package:intl/intl_browser.dart';
+import 'package:intl/date_symbol_data_local.dart';
+//import 'package:intl/date_symbol_data_http_request.dart';
 
 import '../supertable.dart';
 import '../chunkfitlayout.dart';
@@ -16,22 +22,42 @@ class Open_seller extends SuperMenuAction {
 }
 
 void main() {
-  //t1 = new SuperTable.presizedContainer('testtable1');
-  SuperTable t1, t2;
+  Future sysLoc;
   
-  t1 = new SuperTable.presizedContainer('testtable1'); t1.debug = true; t1.init();
-  SuperTableCellUpdateHandlerLogChange l1;
-  l1 = new SuperTableCellUpdateHandlerLogChange("Log"); // See the attribute on one of the editable fields
-  t1.cellUpdateHandlers.add(l1); // Add this update handler to the list.  Note: instantiate one of these for each table you need it for.
+  print('defaultLocale is:\n' + Intl.defaultLocale.toString() + '\ndefaultLocale');
+  print('before findSystemLocale defaultLocale is:\n' + Intl.defaultLocale.toString() + '\ndefaultLocale');
+  if (Intl.defaultLocale == null) {
+    sysLoc = findSystemLocale().then(
+        (_) {
+      print('after findSystemLocale defaultLocale is:\n' + Intl.defaultLocale.toString() + ' ' + _.toString() + '\ndefaultLocale');
+      initializeDateFormatting(_, null).then(
+          (_) {
+            print('after initializeDateFormatting defaultLocale is:\n' + Intl.defaultLocale.toString() + ' ' + _.toString() + '\ndefaultLocale'); 
+            init();
+          } 
+      );
+    });
+    // As soon as I find a better way to do this, I'll change it.
+  }
+}
+
+init() {
+  SuperTable t1, t2;
+
+  t1 = new SuperTable.presizedContainer('testtable1'); t1.debug = false; t1.init();
+  //SuperTableCellUpdateHandlerLogChange l1;
+//  l1 = new SuperTableCellUpdateHandlerLogChange("Log"); // See the attribute on one of the editable fields
+//  t1.cellUpdateHandlers.add(l1); // Add this update handler to the list.  Note: instantiate one of these for each table you need it for.
   
   t2 = new SuperTable.presizedContainer('testtable2'); t2.init();
   
   SuperTableComputedField t2counter = new SuperTableComputedFieldCount(t2,t2.generateColClassName(1),SuperTableComputedField.MODESELECTED);
   t2.debug = true;
   t2.addComputedField(t2counter);
-  
+    
   SuperTableComputedField t2years = new SuperTableComputedFieldColumnIntSum(t2,t2.generateColClassName(2),SuperTableComputedField.MODESELECTED);
   t2.addComputedField(t2years);
+  
   //t1.getScrollbarWidth();
   var clicker;
   Element button, test1;
@@ -67,19 +93,19 @@ void main() {
   
 
   test1 = document.querySelector("#test1");
-  window.console.debug('t1' +
+  print('t1' +
       ' offsetTop=' + t1.mainHolder_3.offsetTop.toString() +
       ' offsetHeight=' + t1.mainHolder_3.offsetHeight.toString() +
       ' offsetLeft=' + t1.mainHolder_3.offsetLeft.toString() +
       ' offsetWidth=' + t1.mainHolder_3.offsetWidth.toString() + '');
       
-  window.console.debug('t1' +
+  print('t1' +
       ' clientTop=' + t1.mainHolder_3.clientTop.toString() +
       ' clientHeight=' + t1.mainHolder_3.clientHeight.toString() +
       ' clientLeft=' + t1.mainHolder_3.clientLeft.toString() +
       ' clientWidth=' + t1.mainHolder_3.clientWidth.toString() + '');
 
-  window.console.debug('test1 ' +
+  print('test1 ' +
       ' offsetLeft=' + test1.offsetLeft.toString() +
       ' offsetWidth=' + test1.offsetWidth.toString() +
       ' offsetTop=' + test1.offsetTop.toString() +
@@ -90,7 +116,7 @@ void main() {
       ' clientHeight=' + test1.clientHeight.toString() );
   
   test1 = document.querySelector("#test2");
-  window.console.debug('test2 ' +
+  print('test2 ' +
       ' offsetLeft=' + test1.offsetLeft.toString() +
       ' offsetWidth=' + test1.offsetWidth.toString() +
       ' offsetTop=' + test1.offsetTop.toString() +

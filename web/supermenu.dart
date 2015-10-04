@@ -1,10 +1,19 @@
 //
+// Copyright (c) 2015, John Yendt. All rights reserved. Use of this source code
+// is governed by a LGPL-style license that can be found in the LICENSE file.
+//
+
 library SuperMenu;
 
 import 'dart:html';
+import 'resizable.dart';
 
 abstract class SuperMenuAction {
+  SuperMenu superMenu;
   void action();
+//  setResizeable(Resizable resizable) {
+//    superMenu.resizableModalChild = resizable;
+//  }
 }
 
 class SuperMenuItem {
@@ -23,22 +32,24 @@ class SuperMenuItem {
   SuperMenuItem() { subMenuItems = new List<SuperMenuItem>(); }
 }
 
-class SuperMenu {
-  String SuperMenuMenuClass = 'superMenuMenu';
-  String SuperMenuItemClass = 'superMenuItem';
-  String SuperMenuTopItemClass = 'superMenuTopItem';
-  String SuperMenuWidthAttrName = 'superMenuWidth';
-  String SuperMenuDispayTextAttrName = 'superMenuText';
-  String SuperMenuActiveItemClass = 'superMenuItemActive';
-  String SuperMenuIdAttrName = 'superMenuId';
-  String SuperMenuXOffsetAttrName = 'superMenuXOffset';
-  String SuperMenuYOffsetAttrName = 'superMenuYOffset';
+class SuperMenu implements Resizable, Resizer {
+  static const String ATTRNAMEPREFIX = 'data-'; // So the attributes become application specific
+  String SuperMenuMenuClass          = 'superMenuMenu';
+  String SuperMenuItemClass          = 'superMenuItem';
+  String SuperMenuTopItemClass       = 'superMenuTopItem';
+  String SuperMenuWidthAttrName      = ATTRNAMEPREFIX + 'superMenuWidth';
+  String SuperMenuDispayTextAttrName = ATTRNAMEPREFIX + 'superMenuText';
+  String SuperMenuActiveItemClass    = 'superMenuItemActive';
+  String SuperMenuIdAttrName         = ATTRNAMEPREFIX + 'superMenuId';
+  String SuperMenuXOffsetAttrName    = ATTRNAMEPREFIX + 'superMenuXOffset';
+  String SuperMenuYOffsetAttrName    = ATTRNAMEPREFIX + 'superMenuYOffset';
   int DefaultMenuItemWidth = 50;
   bool debug = true;
   int zIndexOffset = 5;
+  Resizable resizableModalChild2 = null; // Must fill this in when a modal child must resize too.
   
   SuperMenuItem menuItems;
-  //Element container;
+  Element menu;
   
   int TopMenuSpace = 5;
   String id;
@@ -57,7 +68,7 @@ class SuperMenu {
   void init() {
     // Get the menu and remove it from the class
     int width;
-    Element menu;
+    //Element menu;
     var listener;
     
     menuItems.subMenuDisplay = new Element.div();
@@ -114,8 +125,8 @@ class SuperMenu {
   
   void buildMenuItems(SuperMenuItem parent, Element ol) {
     List<Element> lis, ols;
-    Node sub;
     Element li, subol;
+    Node subNodeLi, subNodeOl;
     SuperMenuItem smi;
     int n = 0;
     String attr;
@@ -123,9 +134,9 @@ class SuperMenu {
     Debug('Enter buildMenuItems - ol=' + ol.toString());
     
     lis = ol.childNodes;
-    for (sub in lis) {
-      if ( ! (sub is Element)) continue;
-      li = sub;
+    for (subNodeLi in lis) {
+      if (! (subNodeLi is Element)) continue;
+      li = subNodeLi;
       smi = new SuperMenuItem();
       smi.parent = parent;
       smi.id = li.id;
@@ -136,9 +147,9 @@ class SuperMenu {
       smi.text = li.getAttribute(SuperMenuDispayTextAttrName);
       // Now let's see if there are any sub menus
       ols = li.childNodes;
-      for (sub in ols) {
-        if (! (sub is Element)) continue;
-        subol = sub;
+      for (subNodeOl in ols) {
+        if (! (subNodeOl is Element)) continue;
+        subol = subNodeOl;
         Debug('buildMenuItems - working on subs for text=' + smi.text + ' tagName=' + subol.tagName);
         // Note: There should only ever be one OL in here.  More that one make no sense.
         if (subol.tagName == 'OL') {
@@ -318,7 +329,10 @@ class SuperMenu {
     SuperMenuItem found;
     Debug('Enter addAction');
     found = findMenuItemById(menuItems.subMenuItems,id);
-    if (found != null) found.action = action;
+    if (found != null) {
+      found.action = action;
+      action.superMenu = this;
+    }
     else Debug("addAction - Could not find id='" + id.toString() + "'");
   }
   
@@ -332,17 +346,28 @@ class SuperMenu {
     menuId = target.getAttribute(SuperMenuIdAttrName);
     Debug('runAction look for menuId=\'' + menuId.toString() + '\'');
     current = findMenuItem(menuItems.subMenuItems, menuId);
-    
+    Debug('runAction - current=' + current.toString());
     if (current.action != null) {
       removeChildSubMenus(menuItems);
+      Debug('runAction - before action');
       current.action.action();
+      Debug('runAction - after action');
     } else Debug("action is null");
     
     Debug('runAction current=' + current.text);
     
   }
   
+  void setResizable(Resizable resizable,bool active) {
+    Debug("setResizable - resizableModalChild=" + resizableModalChild2.toString());
+    resizableModalChild2 = (active) ? resizable : null;
+  }
+  
+  void resize() {
+    if (resizableModalChild2 != null) resizableModalChild2.resize();
+  }
+  
   void Debug(String s) {
-    if (debug) window.console.debug('SuperMenu ' + s);
+    if (debug) print('SuperMenu ' + s);
   }
 }

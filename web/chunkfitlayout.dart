@@ -6,13 +6,21 @@ library ChunkFitLayout;
 import 'dart:html';
 import 'dart:math';
 
+// Let's think about this!!!
+//class ChunkFitElement {
+//  Element component;
+//  double mult;
+//  int offset;
+//  ChunkFitElement(Element this.component, {this.mult: 1.0, this.offset: 1 });
+//}
+
 abstract class ChunkFitChange {
   static const int NONE = 0, SPACE = 1, SIZE = 2, ALIGN = 3, STRETCH = 4, CHUNK = 5;
   static const int CHANGEGROW = 10;
   List<Element> components;
   Element container;
   Element start;
-  bool debug = true;
+  bool debug = false;
   int changeType = NONE;
   String name = 'none';
   
@@ -32,7 +40,7 @@ abstract class ChunkFitChange {
   void alter();
     
   void Debug(String s) {
-    if (debug) window.console.debug('ChunkFitChange ' + name + ' ' + s);
+    if (debug) print('ChunkFitChange ' + name + ' ' + changeType.toString() + ' - ' + s);
   }
 }
 
@@ -160,14 +168,18 @@ class ChunkFitAlign extends ChunkFitChange {
     int i;
     Element component; 
     
-    Debug("Enter reAlign");
+    Debug("Enter reAlign - start - (" + start.id + ", " + start.offsetLeft.toString() + ',' + start.offsetWidth.toString() + ")");
     
     for (component in components) {
       switch (alignment) {
         case LEFT:
           component.style.left = start.style.left; break;
         case RIGHT:
+          Debug("reAlign - start - (" + component.offsetLeft.toString() + ',' + component.offsetWidth.toString() + ")");
           component.style.left = (start.offsetLeft + start.offsetWidth - component.offsetWidth).toString() + 'px';
+          Debug("reAlign - (" + component.style.left + ')');
+          Debug("reAlign - (" + component.id + ', ' + "offset=" + component.offsetLeft.toString() + ',' + component.offsetWidth.toString() + ")");
+          Debug("reAlign - (" + component.id + ', ' + "client=" + component.clientLeft.toString() + ',' + component.clientWidth.toString() + ")");
           break;
         case HCENTER:
           component.style.left = (start.offsetLeft + ((start.offsetWidth - component.offsetWidth) ~/ 2)).toString() + 'px';
@@ -183,9 +195,7 @@ class ChunkFitAlign extends ChunkFitChange {
         case NONE:
           break;
       }
-    }
-    
-    Debug("Exit reAlign");
+    }     
   }  
 }
 
@@ -415,7 +425,7 @@ class ChunkFitLayout {
   static const int INTERCHUNKSPACE = 10;
   static const int LEFTINSET = 8;
   static const int TOPINSET = 8;
-  bool debug = true;
+  bool debug = false;
   String name = "UnNamed";
   int horizontalSpace = HORIZONTALSPACE;
   int verticalSpace = VERTICALSPACE;
@@ -462,7 +472,7 @@ class ChunkFitLayout {
 //    return this;
 //  }
 //  
-  Debug(String s) { if (debug) window.console.debug('ChunkFit ' + name + ' ' + s);}
+  Debug(String s) { if (debug) print('ChunkFit ' + name + ' ' + s);}
 
 
   void layout() {
@@ -534,6 +544,7 @@ class ChunkFitLayout {
       component.style.left = (component.offsetLeft + offsetx).toString() + 'px';
       component.style.top  = (component.offsetTop  + offsety).toString() + 'px';
     }
+    Debug("Exit offsetAll");
   }
 
   // Call these afterwards if you want to size your contailer to fit

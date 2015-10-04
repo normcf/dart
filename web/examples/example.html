@@ -39,16 +39,16 @@
   <li>Create computed values of selected rows which change as rows are un/selected</li>
   <li>Resizing the wrapper will recalculate the need for scroll bars.  Each press = 1 px.  Hold Shift key for 10px.</li>
   <li>press the saveAs to create a CSV file and download to local</li>
-  <li>click a cell twice to open editing, if editable, and full text selection.  Changed values are validated according to their data type.  (Zuck's phone and Schmidt's age are editable for your enjoyment)</li>
+  <li>click a cell twice to open editing, if editable, and full text selection.  Changed values are validated according to their data type.  (Zuck's phone, graduation date and age, and Schmidt's age are editable for your enjoyment)</li>
   </ul>
  Pros:
  <ol>
  <li>You can subclass the row selection class and have your own handler of clicks</li>
  <li>Set up your own data types for setting a sort order</li>
  <li>Add computed fields and subclass to generate as you need</li>
- <li>All classes and attibute names have defaults but can be changed if you have name collisions</li>
+ <li>All classes and attribute names have defaults but can be changed if you have name collisions</li>
  <li>You can subclass the saveAs function if you want to save in a different format</li>
- <li>The sort function can be called with multiple rows in ascending, or decending order</li>
+ <li>The sort function can be called with multiple rows in ascending, or descending order</li>
  </ol>
  Cons:
  <ol>
@@ -57,16 +57,44 @@
  <li>Currently there is nothing built to allow the user to select which format to saveAs nor whether they want to save just the selected rows or all the rows, but the programmer can 
  subclass the saveAs class and create their own format.  This still doesn't pop up a list of valid formats.  That should be done outside the table.  Maybe later this will be internalized.</li>
  <li>Row and Column span cannot be used at all.</li>
- <li>Only a single hheader line can be used</li>
+ <li>Only a single header line can be used</li>
  <li>Cell contents must, for now, be only plain text, not links.  I will be adding more brains as I go along.</li>
+ <li>Once you get over a thousand rows, the DOM manipulations start to become significant.  
+ I plan to do a SuperLargeTable which will keep minimal rows in the DOM and inject/remove rows as the user scrolls, but this might be a little while.
  </ol>
  Design decision:
  <ul>
  <li>All of the "must have" styles are added by SuperTable so that the CSS cannot be accidentally messed up.</li>
- <li>Class and attribute names are the same as provided in the sample CSS file, but they can be overridden if you're using those somwhere else in you application.
+ <li>Class and attribute names are the same as provided in the sample CSS file, but they can be overridden if you're using those somewhere else in you application.
  After you instantiate the SuperTable object, but before you call init, change any names you want.</li>
- 
-  </ul>
+ <li>You must set Intl.locale or Intl.defaultLocale, and load it, before you can use any dates in the table (as dates).</li>
+ <li>Because the table cells have application attributes (i.e. begin with datat-) you will need to pass in a NodeTreeSanitizer to prevent these from being removed when setInnerHtml is called.</li>
+ </ul>
+  Changes
+ <dl>
+ <dt>2015-09-26 (Not checked in yet)</dt>
+ <dd>
+ <ul>
+ <li>Changed all the application attribute names to add the prefix "data-" so they can never interfere with normal browser operation.</li>
+ <li>Data for table cells, for data other than strings, will now be stored in attribute "data-cellvalue" which will allow the sorters and savers to be sure of valid data and will allow 
+ the display format to be tailored to the user.
+ </li>
+ <li>Changed the default date and datetime storage format to "YYYY-MM-DD" and "YYYY-MM-DDTHH:MI:SS" which is the format html input elements use and still remains sortable.  
+ I wish "the powers that be" would have chosen a more compact format (e.g. YYYYMMDDHHMISS), but that was not in my control. 
+ More work on this will be forthcoming.
+ </li>
+ <li>Changed the way cell editing functions work, and added function to put an edit back to initial value using Shift slow double click.</li>
+ <li>Normalized the way dataTypes work.</li>
+ <li>Changed the refresh table functions so that new rows can be received from the web server and replace the existing rows.</li>
+ <li>Changed Debug to use "print" instead of "window.console.debug".  If I was better at using debug tools, I wouldn't have debug at all, but I may be too old to change :)
+ <li>Corrected  bugs</li>
+ </ul>
+ </dd>
+ </dl>
+ To Do:
+ <ul>
+ <li>Add function to handle large tables.  The current implementation gets very slow after a thousand rows due to DOM access.</li>
+ </ul>
  
 <button id='hplus'>h+</button><button id='hminus'>h-</button><button id='vplus'>v+</button><button id='vminus'>v-</button>
 <button id='split'>split</button>
@@ -78,11 +106,11 @@
   
   <table id='testtable1'>
   <colgroup>
-  <col initwidth='80'  datatype='text' />
-  <col initwidth='200'  datatype='text' />
-  <col initwidth='150'  datatype='date' />
-  <col initwidth='200'  datatype='integer' />
-  <col initwidth='800'  datatype='text' />
+  <col data-initwidth='90'  data-datatype='text' />
+  <col data-initwidth='200' data-datatype='text' />
+  <col data-initwidth='150' data-datatype='date' />
+  <col data-initwidth='50'  data-datatype='integer' />
+  <col data-initwidth='800' data-datatype='text' />
   </colgroup>
   <thead>
     <tr>
@@ -97,50 +125,50 @@
   <tr>
     <td>gates, Bill</td>
     <td>555 77 854</td>
-    <td>1983-05-30</td>
-    <td>62</td>
+    <td data-cellvalue="1983-05-30">1983-05-30</td>
+    <td data-cellvalue="62">62</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Steve Jobs</td>
     <td>555 88 854</td>
-    <td>1981-06-01</td>
-    <td>6</td>
+    <td data-cellvalue="1981-06-01">1981-06-01</td>
+    <td data-cellvalue="6">6</td>
     <td>space</td>
   </tr>
   <tr>
     <td id='serg'>Sergey Brin</td>
     <td>555 99 854</td>
-    <td>1998-06-03</td>
-    <td>44</td>
+    <td data-cellvalue="1998-06-03">1998-06-03</td>
+    <td data-cellvalue="44">44</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Mark Zuckerburg 2px</td>
-    <td class="Editable" cellEditHandler="Log">555 91 854 phone phone phone phone</td>
-    <td>1999-05-25</td>
-    <td>30</td>
+    <td class="Editable" data-cellEditHandlerxxx="Log">555 91 854 phone phone phone phone</td>
+    <td class="Editable" data-cellvalue="1999-05-25">1999-05-25</td>
+    <td class="Editable" data-cellvalue="30">30</td>
     <td>space space space space space space space space space space space space space space space space space space space space space space space</td>
   </tr>
   <tr>
     <td>Larry Page</td>
     <td>555 92 854</td>
-    <td>1975-04-22</td>
-    <td>44</td>
+    <td data-cellvalue="1975-04-22">1975-04-22</td>
+    <td data-cellvalue="44">44</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Eric Schmidt</td>
     <td>555 93 854</td>
-    <td>1975-04-30</td>
-    <td class="Editable">68</td>
+    <td data-cellvalue="1975-04-30">1975-04-30</td>
+    <td class="Editable" data-cellvalue="68">68</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Marissa Mayer</td>
     <td>555 94 854</td>
-    <td>2001-12-22</td>
-    <td>29</td>
+    <td data-cellvalue="2001-12-22">2001-12-22</td>
+    <td data-cellvalue="29">29</td>
     <td>space</td>
   </tr>
   </tbody>
@@ -152,11 +180,11 @@
 <div class='tablescroll_wrapper' style='position:relative;top:13px;height:180px;width:1100px;border-style: inset; border-width:5px; border-color: gray;'>
   <table id='testtable2'>
   <colgroup>
-  <col initwidth='50'  datatype='text' />
-  <col initwidth='50'  datatype='integer' />
-  <col initwidth='100'  datatype='text' />
-  <col initwidth='160'  datatype='text' />
-  <col initwidth='700'  datatype='text' />
+  <col data-initwidth='50'  data-datatype='text' />
+  <col data-initwidth='50'  data-datatype='integer' />
+  <col data-initwidth='100'  data-datatype='text' />
+  <col data-initwidth='160'  data-datatype='text' />
+  <col data-initwidth='700'  data-datatype='text' />
   </colgroup>
   <thead>
     <tr>
@@ -170,70 +198,70 @@
   <tbody>
   <tr>
     <td>Jimmy Carter</td>
-    <td>4</td>
+    <td data-cellvalue="4">4</td>
     <td>444 77 854</td>
     <td>444 77 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Ronald Raegan</td>
-    <td>8</td>
+    <td data-cellvalue="8">8</td>
     <td>555 88 854</td>
     <td>555 88 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>George H. W. Bush</td>
-    <td>4</td>
+    <td data-cellvalue="4">4</td>
     <td>555 99 854</td>
     <td>555 99 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Bill Clinton</td>
-    <td>8</td>
+    <td data-cellvalue="8">8</td>
     <td>555 91 854 phone phone phone phone</td>
     <td>555 91 855 more more more more more</td>
     <td>space space space space space space space space space space space space space space space space space space space space space space space</td>
   </tr>
   <tr>
     <td>George W. Bush</td>
-    <td>8</td>
+    <td data-cellvalue="8">8</td>
     <td>555 92 854</td>
     <td>555 92 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Barrak Obama</td>
-    <td>7</td>
+    <td data-cellvalue="7">7</td>
     <td>555 93 854</td>
     <td>555 93 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Richard Nixon</td>
-    <td>5</td>
+    <td data-cellvalue="5">5</td>
     <td>555 94 854</td>
     <td>555 94 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>Gerald Ford</td>
-    <td>3</td>
+    <td data-cellvalue="3">3</td>
     <td>555 94 854</td>
     <td>555 94 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>LBJ</td>
-    <td>6</td>
+    <td data-cellvalue="6">6</td>
     <td>555 94 854</td>
     <td>555 94 855</td>
     <td>space</td>
   </tr>
   <tr>
     <td>JFK</td>
-    <td>2</td>
+    <td data-cellvalue="2">2</td>
     <td>555 94 854</td>
     <td>555 94 855</td>
     <td>space</td>
@@ -284,26 +312,26 @@ The two Chunks were horizontally slid together.
 Lots of Menus out there.
 
 <ol id="mainMenu" style="visibility: hidden;">
-	<li superMenuWidth="30" superMenuText="File"></li>
-	<li superMenuWidth="55" superMenuText="Clients">
-	<ol id="clientMenu" superMenuXOffset="0" superMenuYOffset="-5">
-		<li superMenuWidth="35" superMenuText="Seller">
-		<ol id="clientSellerMenu" superMenuXOffset="-5" superMenuYOffset="-3">
-			<li id="sellerQuick" superMenuWidth="45" superMenuText="Quick"></li>
-			<li superMenuWidth="45" superMenuText="Search"></li>
-			<li superMenuWidth="40" superMenuText="New"></li>
+	<li data-superMenuWidth="30" data-superMenuText="File"></li>
+	<li data-superMenuWidth="55" data-superMenuText="Clients">
+	<ol id="clientMenu" data-superMenuXOffset="0" data-superMenuYOffset="-5">
+		<li data-superMenuWidth="35" data-superMenuText="Seller">
+		<ol id="clientSellerMenu" data-superMenuXOffset="-5" data-superMenuYOffset="-3">
+			<li id="sellerQuick" data-superMenuWidth="45" data-superMenuText="Quick"></li>
+			<li data-superMenuWidth="45" data-superMenuText="Search"></li>
+			<li data-superMenuWidth="40" data-superMenuText="New"></li>
 		</ol>
 		</li>
-		<li superMenuWidth="45" superMenuText="Buyer">
-		<ol id="clientBuyerMenu" superMenuXOffset="-5" superMenuYOffset="-3">
-			<li superMenuWidth="45" superMenuText="Quick"></li>
-			<li superMenuWidth="45" superMenuText="Search"></li>
-			<li superMenuWidth="40" superMenuText="New"></li>
+		<li data-superMenuWidth="45" data-superMenuText="Buyer">
+		<ol id="clientBuyerMenu" data-superMenuXOffset="-5" data-superMenuYOffset="-3">
+			<li data-superMenuWidth="45" data-superMenuText="Quick"></li>
+			<li data-superMenuWidth="45" data-superMenuText="Search"></li>
+			<li data-superMenuWidth="40" data-superMenuText="New"></li>
 		</ol>
 		</li>
 	</ol>
-	<li superMenuWidth="43" superMenuText="Items"></li>
-	<li superMenuWidth="60" superMenuText="Reference"></li>
+	<li data-superMenuWidth="43" data-superMenuText="Items"></li>
+	<li data-superMenuWidth="60" data-superMenuText="Reference"></li>
 </ol>
 
 <p>
@@ -316,23 +344,23 @@ Cannot reorder the tabs yet.
 
 <div id='testtabview1' class='tabview_wrapper' style='position:relative;height:180px;width:350px;border-style: inset; border-width:2px; border-color: gray;'>
 <ul id="tabs1">
-<li id='tab1' tabtext='DTL'><div style="overflow:auto;">Initial content cannot be pure text.  Need an element to grab.</div></li>
-<li id='tab2' tabtext='FIN'><div style="overflow:auto;">Initial financial content.  Let's add an incomplete "safe harbor" statement here and see if the area will generate scroll bars automatically.
+<li id='tab1' data-tabtext='DTL'><div style="overflow:auto;">Initial content cannot be pure text.  Need an element to grab.</div></li>
+<li id='tab2' data-tabtext='FIN'><div style="overflow:auto;">Initial financial content.  Let's add an incomplete "safe harbor" statement here and see if the area will generate scroll bars automatically.
 The Author is not responsible for any outcome of using this code.
 Use at your own risk.
 Forward looking statements are always subject to risk on unknows including, but not limited to, floods, hurricanes, fx changes, earthquakes, wars in the middle east, wars in the balkans, oil embargos,
 bee colony collapse disorder, elections, etc.</div></li>
-<li id='tab3' tabtext='ALT'><div>Initial alternate content</div></li>
-<li id='tab4' tabtext='MORE'><div>Initial more content</div></li>
-<li id='tab5' tabtext='WAY WIDE MORE'><div>Initial more content</div></li>
-<li id='tab6' tabtext='INV'><div class='tablescroll_wrapper' style='position:absolute;'>
+<li id='tab3' data-tabtext='ALT'><div>Initial alternate content</div></li>
+<li id='tab4' data-tabtext='MORE'><div>Initial more content</div></li>
+<li id='tab5' data-tabtext='WAY WIDE MORE'><div>Initial more content</div></li>
+<li id='tab6' data-tabtext='INV'><div class='tablescroll_wrapper' style='position:absolute;'>
 <table id='tabbedtable'>
   <colgroup>
-  <col initwidth='50'  datatype='text' />
-  <col initwidth='40'  datatype='integer' />
-  <col initwidth='100'  datatype='text' />
-  <col initwidth='160'  datatype='text' />
-  <col initwidth='700'  datatype='text' />
+  <col data-initwidth='50'  data-datatype='text' />
+  <col data-initwidth='40'  data-datatype='integer' />
+  <col data-initwidth='100'  data-datatype='text' />
+  <col data-initwidth='160'  data-datatype='text' />
+  <col data-initwidth='700'  data-datatype='text' />
   </colgroup>
   <thead>
     <tr>
@@ -404,8 +432,8 @@ bee colony collapse disorder, elections, etc.</div></li>
 </table>
 </div>
 </li>
-<li id='tab7' tabtext='CAB'><div>Initial more content</div></li>
-<li id='tab8' tabtext='JUNK'><div>Initial junk content</div></li>
+<li id='tab7' data-tabtext='CAB'><div>Initial more content</div></li>
+<li id='tab8' data-tabtext='JUNK'><div>Initial junk content</div></li>
 </ul>
 </div>
 

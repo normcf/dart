@@ -6,8 +6,22 @@ library SuperTable;
 import 'dart:html';
 import 'dart:async';
 import 'package:intl/intl.dart';
-import "resizable.dart";
+import 'resizable.dart';
 
+/*****************************************************************/
+/*****************************************************************/
+// Begin Double Click Handler
+/*****************************************************************/
+/*****************************************************************/
+
+abstract class SuperTableDblClkHandler {
+  bool enabled = true;
+  void handleDblClk(MouseEvent me);
+}
+
+/*****************************************************************/
+/*****************************************************************/
+// End Double Click Handler
 /*****************************************************************/
 /*****************************************************************/
 // Begin Sort rows functions
@@ -33,9 +47,9 @@ class SuperTableSort {
   List<SuperTableSortRow> rows;
   List<SuperTableSortColumn> sortColumns;
   Element dummyRow = new Element.tr();
-  bool debug = true;
+  bool debug = false;
   
-  SuperTableSort(SuperTable this.table, List<String> columnClassNamesInSortKeyOrder, {this.debug}) {
+  SuperTableSort(SuperTable this.table, List<String> columnClassNamesInSortKeyOrder, {this.debug: false}) {
     List<Element> columns, rows;
     Element table, column;
     SuperTableSortRow superRow;
@@ -159,21 +173,34 @@ class SuperTableSort {
   int compareRows(SuperTableSortRow row1, SuperTableSortRow row2) {
     int sortKey = 1, diff;
     SuperTableSortColumn sortColumn;
+    Element cell;
     String cellData;
     Object cellValue;
     
     for (sortColumn in sortColumns) {
       // In order to avoid parsing data more than once, we'll cache them in SuperTableSortRow.sortItemValues
       if (row1.sortItemValues.length < sortKey) {
-        Debug('Need to get the data row1 - position=' + sortColumn.position.toString());
-        cellData = row1.row.querySelector('td:nth-of-type(' + sortColumn.position.toString() + ')').text;
-        cellValue = sortColumn.columnDataType.parse(cellData);
+        Debug('Need to get the data row1 - position=' + sortColumn.position.toString());        
+        cell = row1.row.querySelector('td:nth-of-type(' + sortColumn.position.toString() + ')');
+        cellData = cell.getAttribute(table.CellValueAttrName);
+        if (cellData == null) {
+          cellData = cell.text;
+          cellValue = sortColumn.columnDataType.parse(cellData);
+        } else {
+          cellValue = sortColumn.columnDataType.value(cellData);
+        }
         row1.sortItemValues.add(cellValue);
       }
       if (row2.sortItemValues.length < sortKey) {
-        Debug('Need to get the data row2 - position=' + sortColumn.position.toString());
-        cellData = row2.row.querySelector('td:nth-of-type(' + sortColumn.position.toString() + ')').text;
-        cellValue = sortColumn.columnDataType.parse(cellData);
+        Debug('Need to get the data row2 - position=' + sortColumn.position.toString());        
+        cell = row2.row.querySelector('td:nth-of-type(' + sortColumn.position.toString() + ')');
+        cellData = cell.getAttribute(table.CellValueAttrName);
+        if (cellData == null) {
+          cellData = cell.text;
+          cellValue = sortColumn.columnDataType.parse(cellData);
+        } else {
+          cellValue = sortColumn.columnDataType.value(cellData);
+        }
         row2.sortItemValues.add(cellValue);
       }
       
@@ -192,7 +219,7 @@ class SuperTableSort {
   }
   
   void Debug(String s) {
-    if (debug) window.console.debug('SuperTableSort ' + s);
+    if (debug) print('SuperTableSort ' + s);
   }
 }
 
@@ -206,40 +233,118 @@ class SuperTableSort {
 /*****************************************************************/
 
 abstract class SuperTableDataType {
+  static const String DATATYPEINPUTPREFIX = 'data-datatype-'; // for normal
   static const String UNKNOWNDATATYPE = 'Unknown'; 
   String dataTypeName = UNKNOWNDATATYPE;
   String exportDataTypeName = UNKNOWNDATATYPE;
+  String DataTypeInputPrefix = DATATYPEINPUTPREFIX; // for normal, but can be overridden
+  bool storeDataValue = true;
+  bool debug = false;
   
   bool isType(String s) { return s == dataTypeName; }
   int compare (Object o1, Object o2);
-  Object parse (Object o);
   bool validate(Object o);
+  Object parse(String v) ; // Parse the string provided in the original data to generate the object value
+  Object value(String v) ; // parse the stored value formatted string into an object
+  String show (Object o) ; // How to show it in the cell from the stored string
+  String save (Object o) ; // How to generate the string for cell storage - Override for specials
+  
+  String showValue(String s) { return show(value(s)); } // Takes the stored value string and formats it for display
+  String display(Element cell, String storedValueAttrName) {
+    String storedValueText;
+    Object storedValue;
+    if (storeDataValue) {
+      storedValueText = cell.getAttribute(storedValueAttrName);
+      if (storedValueText == null) {
+        storedValue = this.parse(cell.text);
+      } else {
+        storedValue = value(storedValueText);
+      }
+    }
+    return show(storedValue);
+  }
+  
+  InputElement getCellEditor(Element cell, SuperTable superTable) {
+    return getDataTypeCellEditor(cell,superTable, type: 'text');
+  }
+  
+  InputElement getDataTypeCellEditor(Element cell, SuperTable superTable, {String type: 'text', List<String> inputAttributes: null } ) {
+    InputElement ie;
+    // An input element will be returned.  It will look for attributes from the cell, or column
+    // for things like maxchars.  They will have the same attr names as the input field, except be prefixed
+    // with DATATYPEINPUTPREFIX.  Recommended to put them in the column instead of on every cell.
+    // cell values will override column values.
+    String initDataPos, value = null;
+    Element col = null;
+    
+    ie = new InputElement(type: type);
+    
+    initDataPos = cell.getAttribute(superTable.InitialDataPosAttrName);
+    if (initDataPos != null) {
+      col = superTable.getColumn(initDataPos);
+    }
+    
+    if (inputAttributes != null) setInputElementAttrs(ie,cell,col,inputAttributes);
+    
+    if (storeDataValue) {
+      value = cell.getAttribute(superTable.CellValueAttrName);
+      // Note: the storedCell value is the same as InputElement uses for all normal datatypes
+      // If you need something different, either define your own datatype, or 
+      // your own CellUpdateHandler
+      if (value != null) {
+        ie.setAttribute('value',value);
+      }
+    } else {
+      ie.setAttribute('value',cell.text);
+    }
+      
+    return ie;
+  }
+    
+  void setInputElementAttrs(InputElement ie, Element cell, Element col, List<String> attrs, {String prefix: DATATYPEINPUTPREFIX} ) {
+    String attr, attrString = '';
+    for (attr in attrs) {
+      // First see if that attr is in the cell
+      attrString = cell.getAttribute(prefix + attr);
+      if (attrString == null) attrString = col.getAttribute(prefix + attr);
+      if (attrString != null) ie.setAttribute(attr,attrString);
+    }
+  }
+  
+  String toString() { return "dataType " + dataTypeName; }
+  void Debug(String s) { if (debug) print(dataTypeName + ' ' + s); }
 }
 
 class SuperTableDataTypeText extends SuperTableDataType {
+  static List<String> inputAttributes = const ['maxlength'];
   SuperTableDataTypeText() {
+    storeDataValue = false;
     dataTypeName = 'text';
     exportDataTypeName = 'text';
   }
   int compare (String o1, String o2) {
     return o1.compareTo(o2);
   }
-  String parse(String s) {
-    return s;
-  }
   bool validate(String s){ return true; }
+
+  String parse(String s) { return s; }
+  Object value(String s) { return s; }
+  String show (Object o) { return o.toString(); }
+  String save (Object o) { return o.toString(); }
+  InputElement getCellEditor(Element cell, SuperTable superTable) { return getDataTypeCellEditor(cell,superTable, type: 'text', inputAttributes: inputAttributes ); }
 }
 
 class SuperTableDataTypeMoney extends SuperTableDataType {
-  SuperTableDataTypeMoney() {
+  static List<String> inputAttributes = const ['step','pattern','min','max'];
+  NumberFormat displayFormat, parseFormat;
+  SuperTableDataTypeMoney({String moneyDisplayString: "#,##0.00", String moneyParseString: "."} ) {
     dataTypeName = 'money';
     exportDataTypeName = 'money';
+    displayFormat = new NumberFormat(moneyDisplayString);
+    parseFormat = new NumberFormat(moneyParseString);
   }
   int compare (double o1, double o2) {
     return o1.compareTo(o2);
-  }
-  double parse (String s) {
-    return double.parse(s, (_) => 0.0);
   }
   bool validate(String s) {
     bool ret = true;
@@ -247,43 +352,63 @@ class SuperTableDataTypeMoney extends SuperTableDataType {
     double.parse(s, (_) { ret = false; return 0.0; });
     return ret;
   }
+  
+  double parse(String s) { Debug('parse'); return parseFormat.parse(s); }
+  double value(String s) { Debug('value'); return double.parse(s, (_) => 0.0); }
+  String show (double d) { Debug('show' ); return displayFormat.format(d); }
+  String save (double d) { Debug('save' ); return d.toString(); }
+  InputElement getCellEditor(Element cell, SuperTable superTable) { 
+    InputElement ie = super.getDataTypeCellEditor(cell,superTable, type: 'number', inputAttributes: inputAttributes ); 
+    ie.style.textAlign = 'right';
+    return ie;
+  }
 }
 
 class SuperTableDataTypeInteger extends SuperTableDataType {
-  SuperTableDataTypeInteger() {
+  static List<String> inputAttributes = const ['step','pattern','min','max'];
+  NumberFormat displayFormat;
+  SuperTableDataTypeInteger({String integerDisplayString: "#,##0" } ) {
     dataTypeName = 'integer';
     exportDataTypeName = 'integer';
+    displayFormat = new NumberFormat(integerDisplayString);
   }
   int compare (int o1, int o2) {
     return o1.compareTo(o2);
   }
-  int parse (String s) {
-    return int.parse(s, onError: (_) => 0);
-  }
   bool validate(String s) {
     bool ret = true;
     // hmmm, must be parseable
-    int.parse(s, onError: (_) { ret = false; return 0.0; });
+    int.parse(s, onError: (_) { ret = false; return 0; });
     return ret;
+  }
+  int    parse(String s) { Debug('parse'); return int.parse(s, onError: (_) => 0); }
+  int    value(String s) { Debug('value'); return int.parse(s, onError: (_) => 0); }
+  String show (int    i) { Debug('show' ); return displayFormat.format(i); }
+  String save (int    i) { Debug('save' ); return i.toString(); }
+  InputElement getCellEditor(Element cell, SuperTable superTable) { 
+    InputElement ie =  getDataTypeCellEditor(cell,superTable, type: 'number', inputAttributes: inputAttributes ); 
+    ie.style.textAlign = 'right';
+    return ie;
   }
 }
 
 class SuperTableDataTypeDateTime extends SuperTableDataType {
-  SuperTableDataTypeDateTime() {
+  static List<String> inputAttributes = const ['maxlength'];
+  DateFormat storedFormat; // Used to store the value (make it string sortable for easier sorting)
+  DateFormat parseFormat; // Used to parse the initial value
+  DateFormat displayFormat; // Used to display 
+  SuperTableDataTypeDateTime({String dateStoredString: "yyyy-MM-dd'T'HH:mm:ss", 
+                              String dateParseString: "yyyy-MM-dd'T'HH:mm:ss",
+                              String dateDisplayString: null} ) { //"yyyy-MM-dd HH:mm:ss"
     dataTypeName = 'datetime';
     exportDataTypeName = 'datetime';
+    storedFormat  = new DateFormat(dateStoredString);
+    parseFormat   = new DateFormat(dateParseString);
+    if (dateDisplayString == null) displayFormat = new DateFormat.yMd().add_Hm();
+    else displayFormat = new DateFormat(dateDisplayString);
   }
   int compare (DateTime o1, DateTime o2) {
     return o1.compareTo(o2);
-  }
-  DateTime parse (String s) {
-    DateTime dt;
-    try {
-      dt = DateTime.parse(s);
-    } on FormatException {
-      dt = new DateTime.now();
-    }
-    return dt;
   }
   bool validate(String s) {
     bool ret = true;
@@ -294,17 +419,44 @@ class SuperTableDataTypeDateTime extends SuperTableDataType {
     }
     return ret;
   }
+  DateTime _parse (String s) {
+    DateTime dt;
+    try {
+      dt = DateTime.parse(s);
+    } on FormatException {
+      dt = new DateTime.now();
+    }
+    return dt;
+  }
+  
+  DateTime parse(String    s) { return parseFormat.parse(s); }
+  DateTime value(String    s) { return storedFormat.parse(s); }
+  String   show (DateTime dt) { return displayFormat.format(dt); }
+  String   save (DateTime dt) { return storedFormat.format(dt); }
+  
+  InputElement getCellEditor(Element cell, SuperTable superTable) { return getDataTypeCellEditor(cell,superTable, type: 'datetime-local', inputAttributes: inputAttributes ); }
 }
 
 class SuperTableDataTypeDate extends SuperTableDataType {
-  SuperTableDataTypeDate() {
+  static List<String> inputAttributes = const ['maxlength'];
+  DateFormat storedFormat; // Used to store the value (make it string sortable for easier sorting)
+  DateFormat parseFormat; // Used to parse the initial value
+  DateFormat displayFormat;
+  // If you're sending a different format into the the table text, change dateParseString accordingly
+  SuperTableDataTypeDate({String dateStoredString: "yyyy-MM-dd", 
+                          String dateParseString: "yyyy-MM-dd",
+                          String dateDisplayString: null} ) { // "yyyy-MM-dd" 
     dataTypeName = 'date';
     exportDataTypeName = 'date';
+    storedFormat  = new DateFormat(dateStoredString);
+    parseFormat   = new DateFormat(dateParseString);
+    if (dateDisplayString == null) displayFormat = new DateFormat.yMd();
+    else displayFormat = new DateFormat(dateDisplayString);
   }
   int compare (DateTime o1, DateTime o2) {
     return o1.compareTo(o2);
   }
-  DateTime parse (String s) {
+  DateTime _parse (String s) {
     int y,m,d;
     DateTime dt;
     try {
@@ -323,6 +475,12 @@ class SuperTableDataTypeDate extends SuperTableDataType {
     }
     return ret;
   }
+  DateTime parse(String    s) { Debug('parse'); return parseFormat.parse(s); }
+  DateTime value(String    s) { Debug('value'); return storedFormat.parse(s); }
+  String   show (DateTime dt) { Debug('show' ); return displayFormat.format(dt); }
+  String   save (DateTime dt) { Debug('save' ); return storedFormat.format(dt); }
+  
+  InputElement getCellEditor(Element cell, SuperTable superTable) { return getDataTypeCellEditor(cell,superTable, type: 'date', inputAttributes: inputAttributes ); }
 }
 
 
@@ -376,7 +534,7 @@ abstract class SuperTableRowSelectPolicy {
     superTable.computedFieldsSelectionChanged();
   }
     
-  // Want to add a flip split row function in th ebase class for all of them to call
+  // Want to add a flip split row function in the base class for all of them to call
   void flipSplitRow(String rowIdAttr) {
     if (superTable.isSplit) {
       Element splitRow;
@@ -391,7 +549,7 @@ abstract class SuperTableRowSelectPolicy {
   }
   
   void Debug(String s) {
-    if (debug) window.console.debug(s);
+    if (debug) print(s);
   }
 }
 
@@ -434,6 +592,7 @@ class SuperTableRowSelectPolicyNormal extends SuperTableRowSelectPolicy {
         bool flipNext = false;
         lastRowId = lastRow.getAttribute(superTable.RowIdAttrName);
         currentRowId = tr.getAttribute(superTable.RowIdAttrName);
+        if (lastRowId == currentRowId) return; // Quick exit if no change needed
         rows = superTable.table.querySelectorAll('tr');
         for (row in rows) {
           thisRowId = row.getAttribute(superTable.RowIdAttrName);
@@ -536,7 +695,7 @@ abstract class SuperTableSaveAs {
   }
   
   void Debug(String s) {
-    if (debug) window.console.debug('SuperTableSaveAs ' + s);
+    if (debug) print('SuperTableSaveAs ' + s);
   }
 }
 
@@ -554,7 +713,7 @@ class SuperTableSaveAsCSV extends SuperTableSaveAs {
     // 2. What do you want to use as a separator, quote and escape?
     // 3. What the filename should be? 
     
-    // Need o figure out how much space we really need
+    // Need to figure out how much space we really need
     // We know we need all the header row + data + the commas + cr (do we need lf too?)
     // Can we determine the record separator of the host system?  For now, crlf
     // Maybe the easiest thing to do is build the whole thing in memory, and check the size,
@@ -589,7 +748,7 @@ class SuperTableSaveAsCSV extends SuperTableSaveAs {
     // Rows will be in their current order
     trs = table.table.querySelectorAll('tr');
     for (tr in trs) {
-      sb.write(buildRow(tr));
+      sb.write(buildRow(tr,table));
     }
     
     return sb.toString();
@@ -616,10 +775,11 @@ class SuperTableSaveAsCSV extends SuperTableSaveAs {
     return sb.toString();
   }
   
-  String buildRow(Element row) {
+  String buildRow(Element row, SuperTable table) {
     StringBuffer sb = new StringBuffer();
     Element td;
     List<Element> tds;
+    String value;
     
     // Note: columns will be in their current order, not their original order
     tds = row.querySelectorAll('td');
@@ -627,7 +787,9 @@ class SuperTableSaveAsCSV extends SuperTableSaveAs {
       // What if the cell contins more than just text, like an <a> ??
       // We'll look at that later.
       if (sb.length > 0) sb.write(delim); // No leading delimiter
-      sb.write(cleanse(td.text));
+      value = td.getAttribute(table.CellValueAttrName); 
+      if (value == null) value = td.text; 
+      sb.write(cleanse(value));
     }
     sb.writeln(delim); // We'll add an ending delim.
     return sb.toString();
@@ -738,9 +900,13 @@ class SuperTableComputedFieldCount extends SuperTableComputedFieldColumn {
 }
 
 class SuperTableComputedFieldColumnIntSum extends SuperTableComputedFieldColumn {
+  SuperTableDataTypeInteger dataType;
   int sum = 0;
   
-  SuperTableComputedFieldColumnIntSum(SuperTable table, String targetColumnClass, [int mode] ) : super(table, targetColumnClass, mode) {}
+  SuperTableComputedFieldColumnIntSum(SuperTable table, String targetColumnClass, [int mode] ) : super(table, targetColumnClass, mode) {
+    dataType = table.getSuperTableDataType('integer');
+    dataType.debug = true;
+  }
   
   void selectedRowFlippedTo(Element row, bool selected) {
     sum += ((selected) ? 1 : -1) * getColumnValue(row);
@@ -750,10 +916,10 @@ class SuperTableComputedFieldColumnIntSum extends SuperTableComputedFieldColumn 
     // Need to find the footer record with the targetColumnClass and update it
     Element td;
     td = table.footerTable.querySelector('.' + targetColumnClass);
-    td.text = sum.toString();
+    td.text = dataType.show(sum);
     if (table.isSplit) {
       td = table.splitFooterTable.querySelector('.' + targetColumnClass);
-      td.text = sum.toString();
+      td.text = dataType.show(sum);
     }    
   }
   
@@ -782,17 +948,26 @@ class SuperTableComputedFieldColumnIntSum extends SuperTableComputedFieldColumn 
     Element cell;
     
     cell = row.querySelector('.' + targetColumnClass);
-    val = int.parse(cell.text, onError: (_) => 0);
+    String value;
+    value = cell.getAttribute(table.CellValueAttrName);
+    if (value == null) {
+      val = int.parse(value, onError: (_) => 0);
+    } else {
+      val = dataType.value(value);
+    }
     
     return val;
   }
 }
 
 class SuperTableComputedFieldColumnMoneySum extends SuperTableComputedFieldColumn {
+  SuperTableDataTypeMoney dataType;
   double sum = 0.0;
-  final oCcy = new NumberFormat("#,##0.00", "en_US");
   
-  SuperTableComputedFieldColumnMoneySum(SuperTable table, String targetColumnClass, [int mode] ) : super(table, targetColumnClass, mode) {}
+  SuperTableComputedFieldColumnMoneySum(SuperTable table, String targetColumnClass, [int mode] ) : super(table, targetColumnClass, mode) {
+    dataType = table.getSuperTableDataType('money');
+    dataType.debug = true;
+  }
   
   void selectedRowFlippedTo(Element row, bool selected) {
     sum += ((selected) ? 1 : -1) * getColumnValue(row);
@@ -802,10 +977,10 @@ class SuperTableComputedFieldColumnMoneySum extends SuperTableComputedFieldColum
     // Need to find the footer record with the targetColumnClass and update it
     Element td;
     td = table.footerTable.querySelector('.' + targetColumnClass);
-    td.text = sum.toString();
+    td.text = dataType.show(sum);
     if (table.isSplit) {
       td = table.splitFooterTable.querySelector('.' + targetColumnClass);
-      td.text = oCcy.format(sum);
+      td.text = dataType.show(sum);
     }    
   }
   
@@ -834,7 +1009,13 @@ class SuperTableComputedFieldColumnMoneySum extends SuperTableComputedFieldColum
     Element cell;
     
     cell = row.querySelector('.' + targetColumnClass);
-    val = double.parse(cell.text, (_) { return 0.0; } );
+    String value;
+    value = cell.getAttribute(table.CellValueAttrName);
+    if (value == null) {
+      val = int.parse(value, onError: (_) => 0);
+    } else {
+      val = dataType.value(value);
+    }
     
     return val;
   }
@@ -854,35 +1035,154 @@ class SuperTableComputedFieldColumnMoneySum extends SuperTableComputedFieldColum
 // Subclass this to have updates to cells do something.  This might be useful if
 // you need a cell update to call the server, or something like that.
 abstract class SuperTableCellUpdateHandler {
+  Object preValue; // to compare to be sure we have a change
   String name;
+  SuperTableDataType dataType;
+  SuperTable superTable;
+  Element cell;
   
-  SuperTableCellUpdateHandler(String this.name){}
+  SuperTableCellUpdateHandler(String this.name);
   
   // Override if you need to do something immediatly before an update attempt
-  preUpdate(Element e) {}
+  bool preUpdate(Element cell, SuperTable superTable) {
+    this.cell = cell;
+    this.superTable = superTable;
+    print("SuperTableCellUpdateHandler Enter preUpdate");   
+    this.dataType = superTable.getSuperTableDataTypeFromCell(cell);
+    print("SuperTableCellUpdateHandler dataType=" + this.dataType.toString());  
+    
+    return true; // May return false if cannot set things up
+  }
+  
+  InputElement getInputElement(); 
+  bool valueChanged();
+  void update();
+  bool validate();
+  bool validateCell(String value) { 
+    // Check that the data is valid for the datatype
+    return dataType.validate(value);
+  } // Override for complicated validations and call this super to check before updating contents
   
   // Must define this action.  Will be called only if data changes
-  update(Element e); 
+  void updateCell(String newValueString) {
+    Object origCellValue, cellValue;
+    String origCellValueString;
+    
+    if (dataType.storeDataValue) cell.setAttribute(superTable.CellValueAttrName,newValueString);
+    cell.text = dataType.show(dataType.value(newValueString));
+    
+    origCellValueString = cell.getAttribute(superTable.OrigCellValueAttrName);
+    if (origCellValueString == null) {
+      cell.classes.add(superTable.CellEditedClass);
+      cell.setAttribute(superTable.OrigCellValueAttrName,dataType.save(preValue));
+    } else {
+      origCellValue = dataType.value(origCellValueString);
+      cellValue = dataType.value(newValueString);
+      if (dataType.compare(origCellValue,cellValue) == 0) {
+        cell.classes.remove(superTable.CellEditedClass);
+        cell.attributes.remove(superTable.OrigCellValueAttrName);
+      } else {
+        //cell.attributes.remove(superTable.CellEditedClass);
+      }
+    }
+    
+    superTable.closeCellEditing(true);
+    cell = null; // Cleanup to guarantee virginity
+    superTable = null;
+    dataType = null;
+  } 
   
-  // Override if you need to do any cleanup after an update attempt
-  postUpdate(Element e){}
+  bool reset() {
+    String origCellValueString;
+    bool ret = false;
+    origCellValueString = cell.getAttribute(superTable.OrigCellValueAttrName);
+    if (origCellValueString != null) {
+      cell.setAttribute(superTable.CellValueAttrName,origCellValueString);
+      cell.attributes.remove(superTable.OrigCellValueAttrName);
+      cell.text = dataType.show(dataType.value(origCellValueString));
+      cell.classes.remove(superTable.CellEditedClass);
+    }
+    cell = null; // Cleanup to guarantee virginity
+    superTable = null;
+    dataType = null;    
+  }  
 }
 
-// Not a really useful example of how to use this, but at least you can see it hapenning.
 // Note that a preValue of the cell contents is saved here.  If you have two, or more, tables on your page,
 // in order to prevent conflict on this variable, be sure to instantiate one of these for each table.
 // Also, note that this is also called from the cloned split table editing.  Clone seems to copy ids too, 
 // so an id on a table element may not be unique in your document.
-class SuperTableCellUpdateHandlerLogChange extends SuperTableCellUpdateHandler {
-  String preValue;
-  SuperTableCellUpdateHandlerLogChange(String name) : super(name) {}
-  
-  @override
-  preUpdate(Element e) {
-    preValue = e.text;
+
+class SuperTableDataTypeCellUpdateHandler extends SuperTableCellUpdateHandler {
+  InputElement ie;
+  // This one will use the datatype, and any attributes on cessl of columns 
+  // to build an input element for the appropriate data type.  Of course,
+  // this may not be tailored enough for some situations, but is shoud be 
+  // enough for most of the time
+  SuperTableDataTypeCellUpdateHandler(String name) : super(name);
+
+  InputElement getInputElement() {
+    ie = dataType.getCellEditor(cell, superTable);
+    if (cell.classes.contains(superTable.CellEditableClass)) {
+      ie.contentEditable = "true";
+      ie.readOnly = false;
+    } else if (cell.classes.contains(superTable.CellNotEditableClass)) {
+      ie.contentEditable = "false";
+      ie.readOnly = true;
+    } else if (superTable.defaultCellEditable) {
+      ie.contentEditable = "true";
+      ie.readOnly = false;
+    } else {
+      ie.contentEditable = "false";
+      //cellEditor.setAttribute('readonly','true');
+      ie.readOnly = true;
+    }
+    return ie;
   }
-  update(Element e) {
-    window.console.log("Data in cell changed from '" + preValue + "' to '" + e.text + "'");
+  
+  bool valueChanged() {
+    Object newValue;
+    bool changed = false;
+    if (dataType.validate(ie.value)) {
+      newValue = dataType.value(ie.value);     
+      changed = (dataType.compare(newValue,preValue) != 0);
+    }
+    return changed;
+  }
+  
+  bool validate() { return validateCell(ie.value); }
+
+  bool preUpdate(Element cell, SuperTable superTable) {
+    bool ret = true;
+    ret = super.preUpdate(cell,superTable);
+    
+    if (ret) {
+      String preValueString;
+      preValueString = cell.getAttribute(superTable.CellValueAttrName);
+      if (preValueString == null){
+        preValue = cell.text;
+      } else {
+        preValue = dataType.value(preValueString);
+      }
+    }
+    
+    return ret;
+  }
+
+  //InputElement getInputElement() { ie = super.getInputElement(); return ie; }
+  
+  update() {
+//    String newValueString;
+//    newValueString = dataType.store(dataType.value(ie.value));
+    print("Data in cell changed from '" + preValue.toString() + "' ");
+    print("Data in cell changed from '" + preValue.toString() + "' to '" + ie.value + "'");
+    // It seems ie.value may not always be valid.  Need to check it out first
+    if (dataType.validate(ie.value)) {
+      updateCell(ie.value);
+      ie = null;
+    } else {
+      print("SuperTableDataTypeCellUpdateHandler " + name.toString() + ' ie.value=' + ie.value + ' not valid.');
+    }
   }
 }
 
@@ -964,8 +1264,10 @@ class SuperTableCellUpdateHandlerLogChange extends SuperTableCellUpdateHandler {
  */
 
 class SuperTable implements Resizable {
-  // The default class names.  Set instance values if you need different names    
+  // The default class names.  Set instance values if you need different names
+  static const String ATTRNAMEPREFIX           = 'data-'; // So the attributes become application specific
   static const String CONTAINERCLASSNAME       = 'tablescroll_wrapper';
+  static const String MAINHOLDERCLASSNAME      = 'mainHolder';
   static const String BODYTABLECLASS           = 'superTableBody';
   static const String HEADERTABLECLASS         = 'superTableHeader';
   static const String FOOTERTABLECLASS         = 'superTableFooter';
@@ -975,7 +1277,7 @@ class SuperTable implements Resizable {
   static const String ROWIDATTRNAME            = 'RowId';
   static const String DATATYPEATTRNAME         = 'datatype';
   static const String SUPERTABLEPREFIX         = 'super';
-  static const String COLUMNCLASSNAME          = 'ColumnClass';
+  static const String COLUMNCLASSATTRNAME      = 'ColumnClass';
   static const String COLUMNRESIZEGRABBERCLASS = 'columnResizeGrabber';
   static const String COLUMNMOVERHOLDERCLASS   = 'columnMoverHolder';
   static const String SPLITGRABBERCLASS        = 'SplitTableGrabber';
@@ -986,6 +1288,8 @@ class SuperTable implements Resizable {
   static const String CELLEDITEDCLASS          = "cellEdited";
   static const String CELLEDITINGCLASS         = 'Editing';
   static const String CELLUPDATEHANDLERATTRNAME= 'cellEditHandler';
+  static const String CELLVALUEATTRNAME        = 'cellvalue';
+  static const String ORIGCELLVALUEATTRNAME    = 'origcellvalue';
   static const int    MINCOLUMNWIDTH           = 5;
   static const int    MINMAINWIDTH             = 100;
   static const int    SPLITGRABBERWIDTH        = 5;
@@ -993,28 +1297,31 @@ class SuperTable implements Resizable {
   static const String NECESSARYTABLESTYLE      = 'table-layout:fixed;';
 
   // Override these if you need to use different class names in your code
-  String ContainerClassName = CONTAINERCLASSNAME;
-  String BodyTableClass = BODYTABLECLASS;
-  String HeaderTableClass = HEADERTABLECLASS;
-  String FooterTableClass = FOOTERTABLECLASS;
-  String InitialWidthAttrName = INITIALWIDTHATTRNAME;
-  String InitialDataPosAttrName = INITIALDATAPOSATTRNAME;
-  String RowIdAttrName = ROWIDATTRNAME;
-  String DataTypeAttrName = DATATYPEATTRNAME;
-  String SuperTablePrefix = SUPERTABLEPREFIX;
-  String ColumnClassName = COLUMNCLASSNAME;
-  String ColumnResizeGrabberClass = COLUMNRESIZEGRABBERCLASS;
-  String ColumnMoverHolderClass = COLUMNMOVERHOLDERCLASS;
-  String SplitGrabberClass = SPLITGRABBERCLASS;
-  String SelectedRowClass = SELECTEDROWCLASS;
-  String ShowStuffClass = SHOWSTUFFCLASS;
-  String CellEditableClass = CELLEDITABLECLASS;
-  String CellNotEditableClass = CELLNOTEDITABLECLASS;
-  String CellEditedClass = CELLEDITEDCLASS;
-  String CellEditingClass = CELLEDITINGCLASS;
-  String CellUpdateHandlerAttrName = CELLUPDATEHANDLERATTRNAME;
-  int    SplitGrabberWidth = SPLITGRABBERWIDTH;
-  int    GrabberZIndexOffset = GRABBERZINDEXOFFSET;
+  String ContainerClassName        = CONTAINERCLASSNAME;
+  String MainHolderClassName       = MAINHOLDERCLASSNAME;
+  String BodyTableClass            = BODYTABLECLASS;
+  String HeaderTableClass          = HEADERTABLECLASS;
+  String FooterTableClass          = FOOTERTABLECLASS;
+  String InitialWidthAttrName      = ATTRNAMEPREFIX + INITIALWIDTHATTRNAME;
+  String InitialDataPosAttrName    = ATTRNAMEPREFIX + INITIALDATAPOSATTRNAME;
+  String RowIdAttrName             = ATTRNAMEPREFIX + ROWIDATTRNAME;
+  String DataTypeAttrName          = ATTRNAMEPREFIX + DATATYPEATTRNAME;
+  String SuperTablePrefix          = SUPERTABLEPREFIX;
+  String ColumnClassAttrName       = ATTRNAMEPREFIX + COLUMNCLASSATTRNAME;
+  String ColumnResizeGrabberClass  = COLUMNRESIZEGRABBERCLASS;
+  String ColumnMoverHolderClass    = COLUMNMOVERHOLDERCLASS;
+  String SplitGrabberClass         = SPLITGRABBERCLASS;
+  String SelectedRowClass          = SELECTEDROWCLASS;
+  String ShowStuffClass            = SHOWSTUFFCLASS;
+  String CellEditableClass         = CELLEDITABLECLASS;
+  String CellNotEditableClass      = CELLNOTEDITABLECLASS;
+  String CellEditedClass           = CELLEDITEDCLASS;
+  String CellEditingClass          = CELLEDITINGCLASS;
+  String CellUpdateHandlerAttrName = ATTRNAMEPREFIX + CELLUPDATEHANDLERATTRNAME;
+  String CellValueAttrName         = ATTRNAMEPREFIX + CELLVALUEATTRNAME;
+  String OrigCellValueAttrName     = ATTRNAMEPREFIX + ORIGCELLVALUEATTRNAME;
+  int    SplitGrabberWidth         = SPLITGRABBERWIDTH;
+  int    GrabberZIndexOffset       = GRABBERZINDEXOFFSET;
   SuperTableRowSelectPolicy rowSelectPolicy;
   int MinColumnWidth = MINCOLUMNWIDTH; // If you change this, you may want to change the CSS too.
   int MinMainWidth = MINMAINWIDTH; // When you split the table, at least this much must be visible, but breaks if table smaller than 100
@@ -1025,6 +1332,7 @@ class SuperTable implements Resizable {
   List<SuperTableComputedField> computedFields;
   List<SuperTableCellUpdateHandler> cellUpdateHandlers;
   List<SuperTableSaveAs> saveAsCreators;
+  SuperTableCellUpdateHandler defaultCellUpdateHandler = null;
   
   bool debug = false;
   String id;  // The id of the table
@@ -1087,23 +1395,38 @@ class SuperTable implements Resizable {
   // End column resizing holders
   
   // Begin showStuff
+  DateTime cellEditClickTime;
   Element showBackground, cellEdited;
-  TextAreaElement cellEditor;
-  SuperTableCellUpdateHandler cellUpdateHandler;
+  Element cellEditor;
+  SuperTableCellUpdateHandler cellUpdateHandler; // current one being done
+  bool editingSplit = false;
   // End showStuff
+  SuperTableDblClkHandler dblClkHandler;
   
-  SuperTable.presizedContainer(String this.id) {
+  SuperTable.presizedContainer(String this.id, {ParentNode container, SuperTableDblClkHandler dblClkHandler}) {
     computedFields = new List<SuperTableComputedField>();
     cellUpdateHandlers = new List<SuperTableCellUpdateHandler>();
     saveAsCreators = new List<SuperTableSaveAs>();
     saveAsCreators.add(new SuperTableSaveAsCSV()); // We'll force in a CSV saver, but user can remove before calling init.
-    table = document.querySelector('#' + id);
+    defaultCellUpdateHandler = new SuperTableDataTypeCellUpdateHandler('dataType');
+    cellEditClickTime = new DateTime.now();
+    table = (container == null) ? document.querySelector('#' + id) : container.querySelector('#' + id);
     table.classes.add(id);
+    setDblClkHandler(dblClkHandler);
   }
         
   void init() {
     firsttime();
     prepareMain();
+  }
+  
+  void setDblClkHandler(SuperTableDblClkHandler dblClkHandler) {
+    this.dblClkHandler = dblClkHandler;
+    if (dblClkHandler != null) table.onDoubleClick.listen(dblClkHandler.handleDblClk);
+  }
+  
+  void enableDblClkHandler(bool enable) {
+    if (dblClkHandler != null) dblClkHandler.enabled = enable;
   }
   
   void forcedTableStyle(Element tbl) {
@@ -1244,7 +1567,7 @@ class SuperTable implements Resizable {
       ..top = '0px'
       ..left = '0px'
       ..height = wrapper_0.clientHeight.toString() + 'px';
-    mainHolder_3.classes.add('mainHolder');
+    mainHolder_3.classes.add(MainHolderClassName);
     
     splitGrabber_G.style
       ..position = 'absolute'
@@ -1387,9 +1710,9 @@ class SuperTable implements Resizable {
     }
         
     reShape();
-  if (showBackground != null) {
-      setShowBackgroundSize(showBackground);
-  }
+    if (showBackground != null) {
+        setShowBackgroundSize(showBackground);
+    }
   }
     
   void reShape() {    
@@ -1535,15 +1858,12 @@ class SuperTable implements Resizable {
       splitFooterWrapper_f.style.width = splitHeaderWrapper_h.style.width;
     }
         
-      splitBodyWrapper_b.style.top = (splitTableWrapper_1.offsetTop + splitHeaderWrapper_h.offsetHeight).toString() + 'px';
-      
-      if (hasFooter) {
-        //footerWrapper_F.style.top = (splitTableWrapper_1.offsetTop + splitTableWrapper_1.offsetHeight - footerWrapperHeight).toString() + 'px';
-        //splitFooterWrapper_f.style.top = (splitTableWrapper_1.offsetTop + splitTableWrapper_1.offsetHeight - footerWrapperHeight).toString() + 'px';
-      }
-
+    splitBodyWrapper_b.style.top = (splitTableWrapper_1.offsetTop + splitHeaderWrapper_h.offsetHeight).toString() + 'px';
     
-
+    if (hasFooter) {
+      //footerWrapper_F.style.top = (splitTableWrapper_1.offsetTop + splitTableWrapper_1.offsetHeight - footerWrapperHeight).toString() + 'px';
+      //splitFooterWrapper_f.style.top = (splitTableWrapper_1.offsetTop + splitTableWrapper_1.offsetHeight - footerWrapperHeight).toString() + 'px';
+    }
   }
   
   void bodyScroll() {
@@ -1599,7 +1919,7 @@ class SuperTable implements Resizable {
     for (Element col in cols) {
       colClass = generateColClassName(columnPos);
       col.classes.add(colClass);
-      col.setAttribute(ColumnClassName,colClass);
+      col.setAttribute(ColumnClassAttrName,colClass);
       col.setAttribute(InitialDataPosAttrName, columnPos.toString());  //If columns are reordered, this will allow finding data refreshed.
             
       swidth = col.getAttribute(InitialWidthAttrName);
@@ -1609,7 +1929,7 @@ class SuperTable implements Resizable {
       dataType = col.getAttribute(DataTypeAttrName);
       th = table.querySelector('th:nth-of-type(' + columnPos.toString() + ')');
       th.classes.add(colClass); th.classes.add(dataType);
-      th.setAttribute(ColumnClassName, colClass);
+      th.setAttribute(ColumnClassAttrName, colClass);
       headerContent = th.innerHtml;
       th.innerHtml = '';
       
@@ -1619,7 +1939,7 @@ class SuperTable implements Resizable {
         ..style.height = '100%'
         ..style.top = '0px'
         ..classes.add(ColumnResizeGrabberClass)
-        ..setAttribute(ColumnClassName, colClass)
+        ..setAttribute(ColumnClassAttrName, colClass)
         ..setAttribute(InitialDataPosAttrName, columnPos.toString())
         ..style.zIndex = (int.parse(th.style.zIndex,onError: (_) => 0) + GrabberZIndexOffset).toString();
       
@@ -1629,7 +1949,7 @@ class SuperTable implements Resizable {
         ..style.height = '100%'
         ..style.width = '100%'
         ..classes.add(ColumnMoverHolderClass)
-        ..setAttribute(ColumnClassName, colClass)
+        ..setAttribute(ColumnClassAttrName, colClass)
         ..setAttribute(InitialDataPosAttrName, columnPos.toString())
         ..innerHtml = headerContent
         ..insertAdjacentElement('afterBegin', resizerGrabberDiv);
@@ -1644,7 +1964,7 @@ class SuperTable implements Resizable {
       if (hasFooter) {
          td = tfoot.querySelector('td:nth-of-type(' + columnPos.toString() + ')');
          td.classes.add(colClass);  // For the sizing
-         td.setAttribute(ColumnClassName, colClass);
+         td.setAttribute(ColumnClassAttrName, colClass);
          // Theoretically, we could add resizers to the footer too.
       }
           
@@ -1656,7 +1976,7 @@ class SuperTable implements Resizable {
     table.onClick.listen(rowSelectPolicy.rowSelect);
     table.onClick.listen(cellSelect);
     // This goes through the data rows.  If the data are later updated, then recall refreshBody.
-    refreshBody();
+    refreshBodyFromDOM();
   }
   
   String generateColClassName(int columnPos) {
@@ -1672,15 +1992,15 @@ class SuperTable implements Resizable {
     Element target;
     Debug('columnSort' + e.target.toString());
     target = e.target;  // Should be 'th' from splitHeaderTable;
-    Debug('columnSort target=' + target.text + ' classname=' + target.getAttribute(ColumnClassName).toString());
+    Debug('columnSort target=' + target.text + ' classname=' + target.getAttribute(ColumnClassAttrName).toString());
     // Need to find movingColumn
-    String columnClassName = target.getAttribute(ColumnClassName);
+    String columnClassName = target.getAttribute(ColumnClassAttrName);
     List<String> classNames;
     classNames = new List<String>();
     classNames.add(columnClassName + ':' + ((lastSortAscending) ? 'D' : 'A'));
     lastSortAscending = ! lastSortAscending;
     SuperTableSort sorter;
-    sorter = new SuperTableSort(this,classNames, debug: true);
+    sorter = new SuperTableSort(this,classNames, debug: false);
     sorter.sort();
   }
   /*****************************************************************/
@@ -1786,14 +2106,14 @@ class SuperTable implements Resizable {
     Element target;
     Debug('startSplitColumnMove' + e.target.toString());
     target = e.target;  // Should be 'th' from splitHeaderTable;
-    Debug('startSplitColumnMove target=' + target.text + ' classname=' + target.getAttribute(ColumnClassName).toString());
+    Debug('startSplitColumnMove target=' + target.text + ' classname=' + target.getAttribute(ColumnClassAttrName).toString());
     // Need to find movingColumn
-    String columnClassName = target.getAttribute(ColumnClassName);
+    String columnClassName = target.getAttribute(ColumnClassAttrName);
     List<Element> cols;
     Element col;
     cols = splitColGroup.querySelectorAll('col');
     for (col in cols) {
-      if (col.getAttribute(ColumnClassName) == columnClassName) {
+      if (col.getAttribute(ColumnClassAttrName) == columnClassName) {
         movingColumn = col;
         break;
       }
@@ -1815,14 +2135,14 @@ class SuperTable implements Resizable {
     Element target;
     Debug('startColumnMove' + e.target.toString());
     target = e.target;  // Should be 'th' from headerTable;
-    Debug('startColumnMove target=' + target.text + ' classname=' + target.getAttribute(ColumnClassName).toString());
+    Debug('startColumnMove target=' + target.text + ' classname=' + target.getAttribute(ColumnClassAttrName).toString());
     // Need to find movingColumn
-    String columnClassName = target.getAttribute(ColumnClassName);
+    String columnClassName = target.getAttribute(ColumnClassAttrName);
     List<Element> cols;
     Element col;
     cols = colGroup.querySelectorAll('col');
     for (col in cols) {
-      if (col.getAttribute(ColumnClassName) == columnClassName) {
+      if (col.getAttribute(ColumnClassAttrName) == columnClassName) {
         movingColumn = col;
         break;
       }
@@ -1975,7 +2295,7 @@ class SuperTable implements Resizable {
     // There are two steps:
     // 1. Update SuperColumns
     // 2. Move the columns (header, body and footer)
-    int movingColumnPos = getColumnPositionByColumnClassName(movingColumn.getAttribute(ColumnClassName));
+    int movingColumnPos = getColumnPositionByColumnClassName(movingColumn.getAttribute(ColumnClassAttrName));
     if (movingColumnPos == follows) return; // Was not moving at all
     if (movingColumnPos == follows + 1) return; // Was not moving at all
     
@@ -2074,7 +2394,7 @@ class SuperTable implements Resizable {
     int rowcount = 0, colPosition;
     String tablestuff, contents, columnClassName;
     Element td, th;
-    columnClassName = movingColumn.getAttribute(ColumnClassName);
+    columnClassName = movingColumn.getAttribute(ColumnClassAttrName);
     colPosition = getColumnPositionByColumnClassName(columnClassName);
     // First the header
     th = headerTable.querySelector('th:nth-of-type(' + colPosition.toString() + ')');
@@ -2196,7 +2516,7 @@ class SuperTable implements Resizable {
     Debug('startColumnResize' + e.target.toString());
     p = e.target;
     Debug('startColumnResize ' + p.classes.first);
-    Debug('colclass=' + p.getAttribute(ColumnClassName).toString());
+    Debug('colclass=' + p.getAttribute(ColumnClassAttrName).toString());
     Debug('columnPos=' + p.getAttribute(InitialDataPosAttrName).toString());
     // We'll keep a copy of these for now, even though we don't know how to reapply them.
     mouseUpHolder = document.onMouseUp;
@@ -2208,11 +2528,11 @@ class SuperTable implements Resizable {
     //startx = e.screen.x;
     startx = e.page.x;
     //resizingColumn = int.parse(p.getAttribute(InitialDataPosAttrName).toString());
-    resizingClass = p.getAttribute(ColumnClassName);
+    resizingClass = p.getAttribute(ColumnClassAttrName);
     List<Element> cols = colGroup.querySelectorAll('col');
     Element col;
     for (col in cols) {
-      if (col.getAttribute(ColumnClassName) == resizingClass) {
+      if (col.getAttribute(ColumnClassAttrName) == resizingClass) {
         // This is the column
         resizingColumn = col; break;
       }
@@ -2289,8 +2609,14 @@ class SuperTable implements Resizable {
   }
   
   void splitCellSelect(MouseEvent e) {   
-    Debug("Enter cellSelect.hashCode=" + cellEdited.hashCode.toString() + ' e.target.hashCode=' + e.target.hashCode.toString());
+    bool editing = false;
+    Debug("Enter splitCellSelect.hashCode=" + cellEdited.hashCode.toString() + ' e.target.hashCode=' + e.target.hashCode.toString());
     if (cellEdited.hashCode == e.target.hashCode) {
+      DateTime clickTime = new DateTime.now();
+      Duration duration = clickTime.difference(cellEditClickTime);
+      editing = ((duration.inMilliseconds > 300) && (duration.inMilliseconds < 1000));
+    }
+    if (editing) {
       String cellUpdateHandlerName;
       cellUpdateHandlerName = cellEdited.getAttribute(CellUpdateHandlerAttrName);
       if (cellUpdateHandlerName != null) {
@@ -2298,51 +2624,50 @@ class SuperTable implements Resizable {
         for (cellUpdateHandler in cellUpdateHandlers) {
           if (cellUpdateHandler.name == cellUpdateHandlerName) break;
         }
-        if (cellUpdateHandler != null) cellUpdateHandler.preUpdate(cellEdited);
-      }
-      // OK, now get the main table row and pass it in
-      openCell(cellEdited, true);
+      } 
+      if (cellUpdateHandler == null) cellUpdateHandler = defaultCellUpdateHandler; // Try to use defaultCellUpdateHandler
       
-      // Now need to register an event to 
-      StreamSubscription<Event> undo = showBackground.onClick.listen(null);
-      undo.onData(endSplitCellEdit); 
+      if (cellUpdateHandler != null) {
+        editingSplit = true;
+        cellUpdateHandler.preUpdate(cellEdited,this); // Need to get dataType
+        if (e.shiftKey) {
+          cellUpdateHandler.reset();
+          setMainTdEditedFromSplit(cellEdited);
+        } else {
+          openCell(cellEdited, true);                  
+          // Now need to register an event to 
+          StreamSubscription<Event> undo = showBackground.onClick.listen(null);
+          undo.onData(endSplitCellEdit); 
+        }
+      } else { print("No SuperTableCellUpdateHandler available"); }      
     } else {
       cellEdited = e.target;
+      cellEditClickTime = new DateTime.now();
     }
   }
   
   void endSplitCellEdit(MouseEvent e) {
     // If the cell was editable, need to put the new data in place.
     if (e.target != cellEditor) {
-      Debug("cellEditor.isContentEditable=" + cellEditor.isContentEditable.toString());
-      if (cellEditor.isContentEditable) {
-        Debug("cellEditor.text=" + cellEditor.value);
-        if (cellEdited.text != cellEditor.value) {
-          if (validateEdit(cellEdited,cellEditor.value)) {
-            cellEdited.text = cellEditor.value;
-            cellEdited.classes.add(CellEditedClass);
-            if (cellUpdateHandler != null) cellUpdateHandler.update(cellEdited);
-            tableEditCount++;
-            if (isSplit) {
-              setMainTdEditedFromSplit(cellEdited);
-            }  
-            showBackground.remove();
-          } else {
-            showBackground.remove();
-            Element msg;
-            msg = new Element.div();
-            msg.text = 'Changed value is not valid.  Change Ignored.';
-            showStuff(msg);
-          }        
-        } else showBackground.remove();
-      } else showBackground.remove();
+      bool valid;
+      valid = cellUpdateHandler.validate(); // rudimentary element validation, but not application
+      if (! valid) {
+        cellEditor.focus();
+      } else {
+        cellUpdateHandler.update();
+      }
     }
-    if (cellUpdateHandler != null) cellUpdateHandler.postUpdate(cellEdited);
   }
   
   void cellSelect(MouseEvent e) {   
+    bool editing = false;
     Debug("Enter cellSelect.hashCode=" + cellEdited.hashCode.toString() + ' e.target.hashCode=' + e.target.hashCode.toString());
     if (cellEdited.hashCode == e.target.hashCode) {
+      DateTime clickTime = new DateTime.now();
+      Duration duration = clickTime.difference(cellEditClickTime);
+      editing = ((duration.inMilliseconds > 300) && (duration.inMilliseconds < 1000));
+    }
+    if (editing) {
       // If there is a CellEditUpdateAttrName then need to look for an update handler
       String cellUpdateHandlerName;
       cellUpdateHandlerName = cellEdited.getAttribute(CellUpdateHandlerAttrName);
@@ -2351,16 +2676,26 @@ class SuperTable implements Resizable {
         for (cellUpdateHandler in cellUpdateHandlers) {
           if (cellUpdateHandler.name == cellUpdateHandlerName) break;
         }
-        if (cellUpdateHandler != null) cellUpdateHandler.preUpdate(cellEdited);
-      }
-      // OK, now get the main table row and pass it in
-      openCell(cellEdited, false);
+      } 
+      if (cellUpdateHandler == null) cellUpdateHandler = defaultCellUpdateHandler; // Try to use defaultCellUpdateHandler
       
-      // Now need to register an event to 
-      StreamSubscription<Event> undo = showBackground.onClick.listen(null);
-      undo.onData(endCellEdit); 
+      if (cellUpdateHandler != null) {
+        editingSplit = false;
+        cellUpdateHandler.preUpdate(cellEdited,this); // Need to get dataType
+        if (e.shiftKey) {
+          cellUpdateHandler.reset();
+          setSplitTdEditedFromMain(cellEdited);
+        } else {
+          // OK, now get the main table row and pass it in
+          openCell(cellEdited, false);                  
+          // Now need to register an event to 
+          StreamSubscription<Event> undo = showBackground.onClick.listen(null);
+          undo.onData(endCellEdit); 
+        }
+      } else { print("No SuperTableCellUpdateHandler available"); }
     } else {
       cellEdited = e.target;
+      cellEditClickTime = new DateTime.now();
     }
   }
 
@@ -2369,33 +2704,59 @@ class SuperTable implements Resizable {
     if (e.target != cellEditor) {
       Debug("cellEditor.isContentEditable=" + cellEditor.isContentEditable.toString());
       if (cellEditor.isContentEditable) {
-        Debug("cellEditor.text=" + cellEditor.value);
-        if (cellEdited.text != cellEditor.value) {
-          if (validateEdit(cellEdited,cellEditor.value)) {
-            cellEdited.text = cellEditor.value;
-            cellEdited.classes.add(CellEditedClass);
-            if (cellUpdateHandler != null) cellUpdateHandler.update(cellEdited);
-            tableEditCount++;
-            if (isSplit) {
-              setSplitTdEditedFromMain(cellEdited);
-            }  
-            showBackground.remove();
+        
+        if (cellUpdateHandler.valueChanged()) {
+          bool valid;
+          // Now we pass control to the cellUpdateHandler to do the update.
+          // There may be other validations that need to be done that require 
+          // web server and Futuresm so, when it is done, it will call closeCellEditing
+          
+          valid = cellUpdateHandler.validate(); // rudimentary element validation, but not application
+          if (! valid) {
+            cellEditor.focus();
           } else {
-            showBackground.remove();
-            Element msg;
-            msg = new Element.div();
-            msg.text = 'Changed value is not valid.  Change Ignored.';
-            showStuff(msg);
-          }        
-        } else showBackground.remove();
-      } else showBackground.remove();
+            cellUpdateHandler.update();
+          }
+              
+//          if (validateEdit(cellEdited,cellEditor.value)) {
+//            cellEdited.text = cellEditor.value;
+//            cellEdited.classes.add(CellEditedClass);
+//            if (cellUpdateHandler != null) cellUpdateHandler.update(cellEdited);
+//            tableEditCount++;
+//            if (isSplit) {
+//              setSplitTdEditedFromMain(cellEdited);
+//            }  
+//            showBackground.remove();
+//          } else {
+//            showBackground.remove();
+//            Element msg;
+//            msg = new Element.div();
+//            msg.text = 'Changed value is not valid.  Change Ignored.';
+//            showStuff(msg);
+//          }        
+        } else closeCellEditing(true);
+      } else closeCellEditing(true);
       
-      if (cellUpdateHandler != null) cellUpdateHandler.postUpdate(cellEdited);
     }
   }
   
-  TextAreaElement getEditArea(int x, int y, int h, int w) {
-    TextAreaElement ta;
+// Callback from cellUpdateHandler when all is good or bad
+  void closeCellEditing(bool close, {String message: null} ) { 
+    if (close) {
+      if (cellEditor.isContentEditable) {
+        
+      }
+      showBackground.remove();
+      if (editingSplit) setMainTdEditedFromSplit(cellEdited);
+      else setSplitTdEditedFromMain(cellEdited);
+      
+    } else {
+      // need to display message with OK and Cancel, but not get rid of editor yet
+    }
+  } 
+  
+  InputElement getEditArea(int x, int y, int h, int w) {
+    InputElement ie;
 
     // Let's keep the text area inside the table wrapper (at least horizontally)
     if (x < 0) {
@@ -2407,9 +2768,9 @@ class SuperTable implements Resizable {
       w -= (x + w - wrapper_0.clientWidth);
     }
     
-    ta = new TextAreaElement();
+    ie = cellUpdateHandler.getInputElement();
     
-    ta.style
+    ie.style
       ..position = 'absolute'
       ..left = x.toString() + 'px'
       ..top = y.toString() + 'px'
@@ -2419,7 +2780,7 @@ class SuperTable implements Resizable {
       ..maxWidth = w.toString() + 'px'
     ;
     
-    return ta;
+    return ie;
   }
   
   void openCell(Element td, bool split) {
@@ -2433,22 +2794,7 @@ class SuperTable implements Resizable {
           td.offsetTop + headerWrapper_H.offsetHeight - bodyWrapper_B.scrollTop,td.offsetHeight,td.offsetWidth);
     }        
     cellEditor.classes.add(CellEditingClass);
-    cellEditor.text = td.text;
-    
-    if (td.classes.contains(CellEditableClass)) {
-      cellEditor.contentEditable = "true";
-      cellEditor.readOnly = false;
-    } else if (td.classes.contains(CellNotEditableClass)) {
-      cellEditor.contentEditable = "false";
-      cellEditor.readOnly = true;
-    } else if (defaultCellEditable) {
-      cellEditor.contentEditable = "true";
-      cellEditor.readOnly = false;
-    } else {
-      cellEditor.contentEditable = "false";
-      //cellEditor.setAttribute('readonly','true');
-      cellEditor.readOnly = true;
-    }
+   
     showBackground.insertAdjacentElement('afterBegin', cellEditor);
     wrapper_0.insertAdjacentElement('afterBegin', showBackground);
   }
@@ -2490,7 +2836,12 @@ class SuperTable implements Resizable {
   void setSplitTdEditedFromMain(Element mainTd) {
     // First find the row and column of the mainCell
     Element mainTr, splitTr, splitTd;
-    String initdatapos, mainrowid;
+    String initdatapos, mainrowid, origCellValueString;
+    SuperTableDataType dataType;
+        
+    if (! isSplit) return;
+    
+    dataType = getSuperTableDataTypeFromCell(mainTd);
     
     mainTr = mainTd.parent;
     mainrowid = mainTr.getAttribute(RowIdAttrName);
@@ -2498,13 +2849,19 @@ class SuperTable implements Resizable {
     splitTr = splitBodyTable.querySelector('[' + RowIdAttrName + '="' + mainrowid + '"]');
     splitTd = splitTr.querySelector('[' + InitialDataPosAttrName + '="' + initdatapos + '"]');
     splitTd.text = mainTd.text;
-    splitTd.classes.add(CellEditedClass);
+    dataType = getSuperTableDataTypeFromCell(mainTd);
+    if (dataType.storeDataValue) splitTd.setAttribute(CellValueAttrName,mainTd.getAttribute(CellValueAttrName));
+    origCellValueString = mainTd.getAttribute(OrigCellValueAttrName);
+    if (origCellValueString != null) splitTd.setAttribute(OrigCellValueAttrName,origCellValueString);
+    if (mainTd.classes.contains(CellEditedClass)) splitTd.classes.add(CellEditedClass);
+    else splitTd.classes.remove(CellEditedClass);
   }
   
   void setMainTdEditedFromSplit(Element splitTd) {
     // First find the row and column of the mainCell
     Element mainTr, splitTr, mainTd;
-    String initdatapos, splitrowid;
+    String initdatapos, splitrowid, origCellValueString;
+    SuperTableDataType dataType;
     
     splitTr = splitTd.parent;
     splitrowid = splitTr.getAttribute(RowIdAttrName);
@@ -2512,7 +2869,12 @@ class SuperTable implements Resizable {
     mainTr = table.querySelector('[' + RowIdAttrName + '="' + splitrowid + '"]');    
     mainTd = mainTr.querySelector('[' + InitialDataPosAttrName + '="' + initdatapos + '"]');    
     mainTd.text = splitTd.text;
-    mainTd.classes.add(CellEditedClass);
+    dataType = getSuperTableDataTypeFromCell(mainTd);
+    if (dataType.storeDataValue) mainTd.setAttribute(CellValueAttrName,splitTd.getAttribute(CellValueAttrName));
+    origCellValueString = splitTd.getAttribute(OrigCellValueAttrName);
+    if (origCellValueString != null) mainTd.setAttribute(OrigCellValueAttrName,origCellValueString);
+    if (splitTd.classes.contains(CellEditedClass)) mainTd.classes.add(CellEditedClass);
+    else mainTd.classes.remove(CellEditedClass);
   }
   
   /*****************************************************************/
@@ -2529,6 +2891,7 @@ class SuperTable implements Resizable {
   }
   
   void computedFieldsFlipSelectedRow(Element tr, bool selected) {
+    Debug('Enter computedFieldsFlipSelectedRow');
     SuperTableComputedField computedField;
     for (computedField in computedFields) {
       computedField.selectedRowFlippedTo(tr, selected);
@@ -2536,6 +2899,7 @@ class SuperTable implements Resizable {
   }
   
   void computedFieldsSelectionChanged() {
+    Debug('Enter computedFieldsSelectionChanged');
     SuperTableComputedField computedField;
     for (computedField in computedFields) {
       computedField.selectionChanged();
@@ -2543,6 +2907,7 @@ class SuperTable implements Resizable {
   }
   
   void computedFieldsRefresh() {
+    Debug('Enter computedFieldsRefresh');
     SuperTableComputedField computedField;
     for (computedField in computedFields) {
       computedField.refresh();
@@ -2557,14 +2922,44 @@ class SuperTable implements Resizable {
   // Begin tools
   /*****************************************************************/
   /*****************************************************************/
- 
+  SuperTableDataType getSuperTableDataTypeFromCell( Element cell ) {
+    String initialDataPos, dataTypeString;
+    Element column;
+    initialDataPos = cell.getAttribute(InitialDataPosAttrName);
+    column = getColumn(initialDataPos);
+    dataTypeString = column.getAttribute(DataTypeAttrName);
+    Debug("getSuperTableDataTypeFromCell dataTypeString= " + dataTypeString);
+    return getSuperTableDataType(dataTypeString);
+  }
+  
+  SuperTableDataType getSuperTableDataType(String dataType) {
+    SuperTableDataType superTableDataType;
+    for (superTableDataType in superTableDataTypes) {
+      if ( superTableDataType.isType(dataType) ) {
+        return superTableDataType;
+      }
+    }
+    return null;
+  }
+  
+  Element getColumn(String initialDataPos) {
+    List<Element> cols;
+    Element col;
+    colGroup = table.querySelector('colgroup');
+    cols = colGroup.querySelectorAll('col');
+    for (col in cols) {
+      if (col.getAttribute(InitialDataPosAttrName) == initialDataPos) break;
+    }
+    return col;
+  }
+  
   int getColumnPositionByColumnClassName (String columnClassName) {
     List<Element> cols;
     Element col;
     int i = 1;  // First column is 1
     cols = colGroup.querySelectorAll('col');
     for (col in cols) {
-      if (col.getAttribute(ColumnClassName) == columnClassName)
+      if (col.getAttribute(ColumnClassAttrName) == columnClassName)
         break;
       i++;
     }
@@ -2622,37 +3017,131 @@ class SuperTable implements Resizable {
     }
   }
   
+  int updateCounter = 0; // This ensure only the last update is done
   
-  // Call refreshBody after the cells are filled or refilled.
-  void refreshBody() {
+  void refreshBodyFromHTMLRows(String tbodyContents, {NodeTreeSanitizer nodeTreeSanitizer} ) {
+    int updateCounter;
+    TableSectionElement tbodyDOM, tbody;
+    Debug("Enter refreshBodyFromHTMLRows - tbodyContents=" + tbodyContents);
+    updateCounter = ++ this.updateCounter;
+    tbodyDOM = table.querySelector('tbody');
+    tbody = tbodyDOM.clone(false);
+    
+    tbody.setInnerHtml(tbodyContents, treeSanitizer: nodeTreeSanitizer );
+    
+    _prepareNewRows(tbody).then((int value) {
+      Debug("Start of _prepareNewRows - then before replaceWith");
+      if (updateCounter == this.updateCounter) {
+        tbodyDOM.replaceWith(tbody);
+    
+        Debug("refreshBodyFromHTMLRows - Reset all the computed fields");
+        computedFieldsRefresh();
+      
+        if (isSplit) {
+          Debug("refreshBodyFromHTMLRows - Need to clone the body and put in split");
+          splitBodyTable.remove();
+          splitBodyTable = table.clone(true);
+          splitBodyWrapper_b.insertAdjacentElement('afterBegin',splitBodyTable);
+        }
+        resize();
+      }
+      Debug("End of _prepareNewRows then");
+    });   
+  }
+  
+  void refreshBodyFromDOM() {
+    int updateCounter;
+    TableSectionElement tbodyDOM, tbody;
+    Debug("Enter refreshBodyFromDOM");
+    updateCounter = ++ this.updateCounter;
+    tbodyDOM = table.querySelector('tbody');
+    tbody = tbodyDOM.clone(true);
+    
+    _prepareNewRows(tbody).then((int value) {
+      
+      if (updateCounter == this.updateCounter) {
+        tbodyDOM.replaceWith(tbody);
+  
+        Debug("Reset all the computed fields");
+        computedFieldsRefresh();
+    
+        if (isSplit) {
+          Debug("Need to clone the body and put in split");
+          splitBodyTable.remove();
+          splitBodyTable = table.clone(true);
+          splitBodyWrapper_b.insertAdjacentElement('afterBegin',splitBodyTable);
+        }
+        resize();
+      }
+    });
+    
+  }
+  
+  Future<int> _prepareNewRows(TableSectionElement tbody) {
+    var completer = new Completer();
+    prepareNewRows(tbody);
+    completer.complete(0);
+    
+    return completer.future;
+  }
+  
+  int prepareNewRows(TableSectionElement tbody) {
     List<Element> rows, cells, columns;
     int colpos, rowId = 1, cellPos;
     Element row, cell;
     Element column;
+    String datatypename, cellValueText;
     
+    Debug("Enter prepareNewRows");
+    colpos = 1;
     columns = colGroup.querySelectorAll('col');
+    // First step is to ensure the cell text is correctly formatted
+    for (column in columns) {
+      SuperTableDataType dataType;
+      Object o;
+      
+      datatypename = column.getAttribute(DataTypeAttrName);
+      dataType = getSuperTableDataType(datatypename);
+      if (dataType.storeDataValue) {
+        rows = tbody.querySelectorAll('tr');
+        for (Element row in rows) {
+          cells = row.querySelectorAll('td');
+          cell = cells[colpos - 1];
+          cell.classes.add(datatypename);
+          cellValueText = cell.getAttribute(CellValueAttrName);
+          if (cellValueText == null) {
+            // Need to fill it in from the cell text
+            o = dataType.parse(cell.text);
+            cellValueText = dataType.save(o);
+            cell.setAttribute(CellValueAttrName,cellValueText);
+          } else {
+            o = dataType.value(cellValueText);
+          }
+          cell.text = dataType.show(o);
+        }
+      }
+      colpos++;
+    }
     
-    // They must be in the order columns currently are when we start this    
-    rows = table.querySelectorAll('tbody > tr');
+    Debug("prepareNewRows - They must be in the order columns currently are when we start this");
+    rows = tbody.querySelectorAll('tr');
     for (Element row in rows) {
       row.setAttribute(RowIdAttrName, rowId.toString());
       cells = row.querySelectorAll('td');
-      colpos = 0;
       for (column in columns) {
         colpos = int.parse(column.getAttribute(InitialDataPosAttrName));
-        Debug('refreshBody - colpos=' + colpos.toString());
-        cell = cells[colpos - 1];
-        cell.setAttribute(InitialDataPosAttrName, colpos.toString());
-        cell.classes.add(column.getAttribute(DataTypeAttrName)); 
-        cell.classes.add(column.getAttribute(ColumnClassName));
-        //colpos++; // For now we will not check the data for missing cells
+        
+        Debug('prepareNewRows - colpos=' + colpos.toString());
+        cell = cells[colpos - 1];        
+        cell.setAttribute(InitialDataPosAttrName, colpos.toString());        
+        cell.classes.add(column.getAttribute(ColumnClassAttrName));
       }
       rowId++;
     }
     
     // We may need to reorder data to match columns when data are refreshed after 
     // the user has spent some time with moving columns around 
-    if (rows.length > 0) { // If there are no data rows, just skip this entirely
+    if (rows.length > 1) { // If there are no data rows, or even just one row, just skip this entirely
       bool outoforder = true;
       int pos, i;
       int debugCount = 0;
@@ -2663,16 +3152,16 @@ class SuperTable implements Resizable {
         for (column in columns) {
           colpos = int.parse(column.getAttribute(InitialDataPosAttrName));
           cellPos = int.parse(cells[pos].getAttribute(InitialDataPosAttrName));
-          Debug('colpos=' + colpos.toString() + ' cellPos=' + cellPos.toString());
+          Debug('prepareNewRows colpos=' + colpos.toString() + ' cellPos=' + cellPos.toString());
           debugCount++;
-          if (debugCount > 100) return;
+          if (debugCount > 100) return 0;
           if (cellPos != colpos) {
             // They're not in the correct order
             // gotta find the correct data that should be here
             for (i = pos; i < columns.length; i++) {
               cellPos = int.parse(cells[i].getAttribute(InitialDataPosAttrName));
               if (cellPos == colpos) {
-                // This is the one that shoud go in pos
+                // This is the one that should go in pos
                 break;
               }
             }
@@ -2681,19 +3170,34 @@ class SuperTable implements Resizable {
             break;
           }
           pos++;
-          if (pos > 100) return; // Cheat exit for testing
+          if (pos > 100) return 0; // Cheat exit for testing
         }
       }
     }
-    
-    // Reset all the computed fields
-    computedFieldsRefresh();
-    
-    if (isSplit) {
-      // Need to clone the body and put in split
-      splitBodyTable = table.clone(true);
-    }
-
+    Debug("Exit prepareNewRows");
+    return 0;
+  }
+  
+  void columnMoveMoveCell(TableSectionElement tbody, int movingColumnPos, int follows) {
+    List<Element> rows;
+    Element row, columnToMove, columnToFollow;
+    Debug('columnMoveMoveCell moving=' + movingColumnPos.toString() + ' follows=' + follows.toString());
+    rows = tbody.querySelectorAll('tr');
+    for (row in rows) {
+      columnToMove = row.querySelector('td:nth-of-type(' + movingColumnPos.toString() + ')');
+      if (follows == 0) {
+        row.insertAdjacentElement('afterBegin', columnToMove);
+      } else {
+        columnToFollow = row.querySelector('td:nth-of-type(' + follows.toString() + ')');
+        columnToFollow.insertAdjacentElement('afterEnd', columnToMove);
+      }
+    }    
+  }
+  
+  // Call refreshBody after the cells are filled or refilled.
+  @deprecated
+  void refreshBody() {
+    refreshBodyFromDOM();
   }
   
   void columnMoveMoveData(int movingColumnPos, int follows) {
@@ -2720,7 +3224,7 @@ class SuperTable implements Resizable {
   }
 
   void Debug(String s) {
-    if (debug) window.console.debug('SuperTable ' + s);
+    if (debug) print('SuperTable ' + id + ' - ' + s);
   }
 }
 
